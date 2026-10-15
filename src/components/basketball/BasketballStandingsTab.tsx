@@ -1,0 +1,84 @@
+import type { Match } from '../../types/match'
+import { getBasketballStandings } from '../../services/basketballService'
+import { useDetailData } from '../../hooks/useDetailData'
+import { zoneColor } from '../../lib/league'
+import TeamLogo from '../TeamLogo'
+import { EmptyState, ErrorState, LoadingState } from '../match-detail/TabStates'
+
+// Bölge rengi: play-off yeşil, play-in sarı, diğerleri genel kurala göre
+const colorFor = (description: string, index: number) =>
+  /play-?in/i.test(description) ? '#eab308' : /play-?off/i.test(description) ? '#22c55e' : zoneColor(description, index)
+
+// Basketbol puan durumu (API-Basketball): beraberlik yok; G, M, galibiyet yüzdesi, atılan/yenilen sayı
+export default function BasketballStandingsTab({ match }: { match: Match }) {
+  const standings = useDetailData(`bb-standings:${match.leagueId}:${match.basketball?.season ?? ''}`, () => getBasketballStandings(match))
+
+  if (standings.loading) return <LoadingState rows={8} />
+  if (standings.error) return <ErrorState message={standings.error} />
+  if (!standings.data) return <EmptyState message="Bu lig için puan durumu bulunmuyor." />
+
+  const highlighted = new Set([match.homeTeamId, match.awayTeamId])
+  const descriptions = [...new Set(standings.data.groups.flatMap((g) => g.rows.map((r) => r.description)).filter((d): d is string => d !== null))]
+  const th = 'px-1.5 py-2 text-center font-semibold'
+
+  return (
+    <div className="space-y-5 p-3 sm:p-5">
+      {standings.data.groups.map((group) => (
+        <section key={group.name}>
+          {standings.data!.groups.length > 1 && <h3 className="mb-2 px-1 text-sm font-semibold text-white/80">{group.name}</h3>}
+          <table className="w-full text-sm tabular-nums">
+            <thead className="text-xs text-white/45">
+              <tr>
+                <th className={`${th} w-10`}>#</th>
+                <th className={`${th} text-left`}>Takım</th>
+                <th className={th} title="Oynanan">O</th>
+                <th className={th} title="Galibiyet">G</th>
+                <th className={th} title="Mağlubiyet">M</th>
+                <th className={th} title="Galibiyet yüzdesi">%</th>
+                <th className={`${th} hidden sm:table-cell`} title="Atılan : yenilen sayı">Sayı</th>
+              </tr>
+            </thead>
+            <tbody>
+              {group.rows.map((row) => {
+                const isMatchTeam = highlighted.has(row.team.id)
+                const color = row.description ? colorFor(row.description, descriptions.indexOf(row.description)) : undefined
+                return (
+                  <tr key={row.team.id} className={`border-t border-white/5 ${isMatchTeam ? 'bg-accent/10 font-semibold' : ''}`}>
+                    <td className="relative px-1.5 py-2.5 text-center">
+                      {color && <span aria-hidden="true" className="absolute inset-y-1.5 left-0 w-1 rounded-full" style={{ backgroundColor: color }} />}
+                      {row.rank}
+                    </td>
+                    <td className="max-w-0 px-1.5 py-2.5">
+                      <span className="flex items-center gap-2.5">
+                        <TeamLogo name={row.team.name} logo={row.team.logo} size="row" />
+                        <span className="truncate">{row.team.name}</span>
+                      </span>
+                    </td>
+                    <td className="px-1.5 py-2.5 text-center text-white/75">{row.played}</td>
+                    <td className="px-1.5 py-2.5 text-center">{row.won}</td>
+                    <td className="px-1.5 py-2.5 text-center text-white/75">{row.lost}</td>
+                    <td className="px-1.5 py-2.5 text-center font-bold">{row.winPct !== null ? row.winPct.toFixed(3).replace(/^0/, '') : '–'}</td>
+                    <td className="hidden px-1.5 py-2.5 text-center text-white/75 sm:table-cell">
+                      {row.pointsFor}:{row.pointsAgainst}
+                    </td>
+                  </tr>
+                )
+              })}
+            </tbody>
+          </table>
+        </section>
+      ))}
+
+      {descriptions.length > 0 && (
+        <ul className="flex flex-wrap gap-x-5 gap-y-2 border-t border-white/10 px-1 pt-4 text-xs text-white/60">
+          {descriptions.map((d, i) => (
+            <li key={d} className="flex items-center gap-2">
+              <span aria-hidden="true" className="size-2.5 rounded-full" style={{ backgroundColor: colorFor(d, i) }} />
+              {d}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}

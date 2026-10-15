@@ -1,0 +1,10 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["fra1"],
+  "rewrites": [
+    {
+      "source": "/api/:provider(football|basketball|nba)/:path*",
+      "destination": "/api/proxy?provider=:provider&path=:path*"
+    }
+  ]
+}

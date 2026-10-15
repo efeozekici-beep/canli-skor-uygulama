@@ -1,0 +1,410 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+
+  --color-pitch-950: #082513;
+  --color-pitch-900: #0d3b1e;
+  --color-pitch-700: #145a32;
+  --color-accent: #34d058;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+
+  /* shadcn bileşenlerinin beklediği renkler (bg-background, border-input, ring...), sitenin koyu yeşil temasına göre.
+     Not: --color-accent sitenin parlak yeşili olarak kalıyor; shadcn'in "accent"i farklı anlamda ama arama kutusu kullanmıyor. */
+  --color-background: #0e1812;
+  --color-foreground: #e1e7e3;
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-input: rgba(255, 255, 255, 0.14);
+  --color-ring: #34d058;
+  --color-muted: rgba(255, 255, 255, 0.1);
+  --color-muted-foreground: rgba(225, 231, 227, 0.6);
+  --color-primary: #34d058;
+  --color-primary-foreground: #0d3b1e;
+  --color-secondary: rgba(255, 255, 255, 0.08);
+  --color-secondary-foreground: #e1e7e3;
+  --color-destructive: #ef4444;
+  --color-destructive-foreground: #ffffff;
+  --color-accent-foreground: #0d3b1e;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+
+  /* shadcn köşe yarıçapı (kbd ve input-group kullanıyor) */
+  :root {
+    --radius: 0.625rem;
+  }
+
+  /* Sayfa: çim yeşili taban (saha deseni .cinematic-bg katmanında) */
+  body {
+    @apply font-sans antialiased;
+    background-color: #2a8f43;
+    color: #e1e7e3;
+    margin: 0;
+    min-height: 100vh;
+  }
+}
+
+/* ───────────── Futbol sahası çimi arka planı ─────────────
+   Gerçek saha çimi fotoğrafı (public/backgrounds/grass.jpg — Pexels, ücretsiz lisans).
+   Üstünde hafif kenar karartması var ki ortadaki kart öne çıksın.
+   (Kapsayıcıya overflow:hidden verilseydi yapışkan üst menü bozulurdu; bu yüzden ayrı, fixed katman.) */
+@layer components {
+  .cinematic-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -10;
+    overflow: hidden;
+    pointer-events: none;
+    /* Fotoğraf yüklenene kadar görünen çim yeşili */
+    background-color: #2a8f43;
+  }
+
+  /* Fotoğraf katmanı: hafif bulanık, arka planda kalsın.
+     Bulanıklık kenarlarda açık renkli hale yapmasın diye katman ekrandan biraz taşırılır. */
+  .cinematic-bg::before {
+    content: "";
+    position: absolute;
+    inset: -24px;
+    background: url('/backgrounds/grass.jpg') center / cover;
+    filter: blur(6px);
+  }
+
+  /* Üstte hafif genel karartma + kenar karartması */
+  .cinematic-bg::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse at 50% 45%, transparent 40%, rgba(0, 0, 0, 0.35) 100%),
+      rgba(0, 0, 0, 0.15);
+  }
+
+  /* Maç listesinin ana kartı: endüstriyel koyu yeşil-gri; çimden şeffaflık + gölgeyle ayrılır */
+  .match-container-card {
+    background-color: rgba(19, 27, 22, 0.88);
+    backdrop-filter: blur(8px);
+    border: 1px solid rgba(255, 255, 255, 0.07);
+    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+    border-radius: 14px;
+    padding: 16px;
+    max-width: 900px;
+    margin: 20px auto;
+  }
+
+  /* Maç satırı (yatay): durum | ev sahibi | skor | deplasman | yıldız */
+  .match-row {
+    display: flex;
+    align-items: center;
+    padding: 12px 12px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    transition: background-color 0.2s ease;
+    cursor: pointer;
+  }
+
+  @media (hover: hover) {
+    .match-row:hover {
+      background-color: rgba(31, 51, 38, 0.7);
+    }
+  }
+
+  /* 1. hiyerarşi seviyesi (en soluk): saat / durum */
+  .match-time-status {
+    width: 52px;
+    flex-shrink: 0;
+    font-size: 12px;
+    color: #a0aec0;
+    font-weight: 600;
+    text-align: center;
+  }
+
+  /* Durum rozetleri: canlı dakika, devre arası */
+  .status-badge {
+    display: inline-block;
+    min-width: 36px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 16px;
+  }
+
+  .status-badge--live {
+    background-color: rgba(239, 68, 68, 0.14);
+    color: #fca5a5;
+  }
+
+  .status-badge--break {
+    background-color: rgba(251, 191, 36, 0.14);
+    color: #fcd34d;
+  }
+
+  /* 2. seviye: takım adı + logo */
+  .match-team {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+    font-size: 14px;
+    font-weight: 500;
+    color: #f1f5f2;
+  }
+
+  /* 3. seviye (en belirgin): ortadaki skor kutusu */
+  .match-score {
+    min-width: 60px;
+    padding: 4px 8px;
+    border-radius: 8px;
+    background-color: rgba(0, 0, 0, 0.28);
+    text-align: center;
+    font-size: 16px;
+    font-weight: 800;
+    color: #ffffff;
+    letter-spacing: 0.02em;
+  }
+
+  /* Geniş ekranda daha ferah: yüksek satır, büyük ad ve skor.
+     (Telefonda yazı büyütülmez, yoksa takım adları daha çok kesilir.) */
+  @media (min-width: 640px) {
+    .match-row {
+      padding: 14px 16px;
+    }
+
+    .match-team {
+      font-size: 15px;
+      gap: 10px;
+    }
+
+    .match-score {
+      min-width: 70px;
+      padding: 5px 10px;
+      font-size: 18px;
+    }
+  }
+
+  .match-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: #718096;
+    cursor: pointer;
+    transition: color 0.2s ease;
+  }
+
+  .match-actions:hover {
+    color: #e2e8f0;
+  }
+}
+
+.no-scrollbar {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ───────────── Sport backgrounds ─────────────
+   All layers are stacked; the active one has opacity 1 and
+   the transition below produces the cross-fade. */
+
+.sport-bg {
+  position: absolute;
+  inset: 0;
+  transition: opacity 450ms ease;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sport-bg {
+    transition-duration: 150ms;
+  }
+}
+
+/* Futbol: stadium photo (public/backgrounds/football.jpg). Portrait image, so on wide
+   screens it is cropped; the focus stays on the crowd and players. Grass color shows while it loads. */
+.sport-bg--football {
+  background-color: #145a32;
+  background-image: url('/backgrounds/football.jpg');
+  background-size: cover;
+  background-position: center 62%;
+}
+
+/* Basketbol: orange-brown parquet */
+.sport-bg--basketball {
+  background-color: #a8601f;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(60, 25, 5, 0.18) 0 2px, transparent 2px 42px),
+    repeating-linear-gradient(-45deg, rgba(255, 220, 170, 0.08) 0 2px, transparent 2px 42px),
+    repeating-linear-gradient(90deg, #b9702c 0 64px, #9c5719 64px 128px);
+}
+
+/* Tenis: light green surround with a blue hard court drawn by borders */
+.sport-bg--tennis {
+  background-color: #4f9e6c;
+  background-image: linear-gradient(180deg, #5aac77 0%, #3f8a5b 100%);
+}
+
+.tennis-court {
+  position: absolute;
+  top: 58%;
+  left: 50%;
+  width: min(88vw, 1100px);
+  aspect-ratio: 78 / 36;
+  transform: translate(-50%, -50%);
+  border: 3px solid rgba(255, 255, 255, 0.85);
+  background-color: #3a78bd;
+  background-image:
+    /* singles sidelines */
+    linear-gradient(
+      to bottom,
+      transparent calc(12.5% - 1.5px),
+      rgba(255, 255, 255, 0.85) calc(12.5% - 1.5px) calc(12.5% + 1.5px),
+      transparent calc(12.5% + 1.5px) calc(87.5% - 1.5px),
+      rgba(255, 255, 255, 0.85) calc(87.5% - 1.5px) calc(87.5% + 1.5px),
+      transparent calc(87.5% + 1.5px)
+    ),
+    /* service lines */
+    linear-gradient(
+      to right,
+      transparent calc(23% - 1.5px),
+      rgba(255, 255, 255, 0.85) calc(23% - 1.5px) calc(23% + 1.5px),
+      transparent calc(23% + 1.5px) calc(77% - 1.5px),
+      rgba(255, 255, 255, 0.85) calc(77% - 1.5px) calc(77% + 1.5px),
+      transparent calc(77% + 1.5px)
+    );
+}
+
+/* net */
+.tennis-court::before {
+  content: "";
+  position: absolute;
+  top: -3%;
+  bottom: -3%;
+  left: 50%;
+  width: 3px;
+  transform: translateX(-50%);
+  background: rgba(255, 255, 255, 0.95);
+}
+
+/* center service line */
+.tennis-court::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 23%;
+  right: 23%;
+  height: 3px;
+  transform: translateY(-50%);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+/* Formula 1: asphalt grain + red/white kerbs */
+.sport-bg--f1 {
+  background-color: #2a2b2d;
+  background-image:
+    radial-gradient(rgba(255, 255, 255, 0.05) 1px, transparent 1.5px),
+    radial-gradient(rgba(0, 0, 0, 0.35) 1px, transparent 1.5px),
+    linear-gradient(180deg, #313235 0%, #232426 100%);
+  background-size:
+    5px 5px,
+    7px 7px,
+    100% 100%;
+  background-position:
+    0 0,
+    3px 2px,
+    0 0;
+}
+
+.f1-kerb {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 26px;
+  background: repeating-linear-gradient(90deg, #d71920 0 48px, #f4f4f4 48px 96px);
+}
+
+.f1-kerb--top {
+  top: 0;
+  border-bottom: 4px solid rgba(255, 255, 255, 0.9);
+}
+
+.f1-kerb--bottom {
+  bottom: 0;
+  border-top: 4px solid rgba(255, 255, 255, 0.9);
+}
+
+/* Buz Hokeyi: pale blue ice with fine scratches */
+.sport-bg--hockey {
+  background-color: #d6eaf5;
+  background-image:
+    repeating-linear-gradient(28deg, rgba(255, 255, 255, 0.7) 0 1px, transparent 1px 23px),
+    repeating-linear-gradient(-62deg, rgba(110, 160, 195, 0.18) 0 1px, transparent 1px 37px),
+    linear-gradient(180deg, #eaf5fb 0%, #c5e0f0 100%);
+}
+
+/* Beyzbol: infield dirt + white diamond lattice */
+.sport-bg--baseball {
+  background-color: #8a5a2e;
+  background-image:
+    repeating-linear-gradient(45deg, transparent 0 68px, rgba(255, 255, 255, 0.45) 68px 70px),
+    repeating-linear-gradient(-45deg, transparent 0 68px, rgba(255, 255, 255, 0.45) 68px 70px),
+    radial-gradient(rgba(60, 35, 15, 0.25) 1px, transparent 1.5px);
+  background-size:
+    auto,
+    auto,
+    6px 6px;
+}
+
+/* Hentbol: orange-yellow parquet */
+.sport-bg--handball {
+  background-color: #d98b2b;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(120, 60, 0, 0.16) 0 2px, transparent 2px 36px),
+    repeating-linear-gradient(90deg, #e5a03c 0 56px, #cf8120 56px 112px);
+}
+
+/* Rugby: dark green / brown pitch stripes */
+.sport-bg--rugby {
+  background-color: #2d4a28;
+  background-image:
+    repeating-linear-gradient(0deg, rgba(90, 60, 30, 0.18) 0 2px, transparent 2px 9px),
+    repeating-linear-gradient(90deg, #2f5a30 0 110px, #4a4a26 110px 220px);
+}
+
+/* Amerikan Futbolu: green field with horizontal yard lines */
+.sport-bg--american-football {
+  background-color: #1d5c2e;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 86px, rgba(255, 255, 255, 0.75) 86px 89px),
+    repeating-linear-gradient(0deg, transparent 0 15px, rgba(255, 255, 255, 0.12) 15px 16px),
+    linear-gradient(180deg, #226b35 0%, #185228 100%);
+}
+
+/* Voleybol: beach sand under a pale blue sky */
+.sport-bg--volleyball {
+  background-color: #eccf7e;
+  background-image:
+    radial-gradient(rgba(150, 105, 35, 0.3) 1px, transparent 1.5px),
+    radial-gradient(rgba(255, 255, 255, 0.35) 1px, transparent 1.5px),
+    linear-gradient(180deg, #8fd0ef 0%, #bfe3ef 30%, #f1d98e 52%, #e3be66 100%);
+  background-size:
+    5px 5px,
+    9px 9px,
+    100% 100%;
+  background-position:
+    0 0,
+    4px 3px,
+    0 0;
+}
+
+/* MMA: dark red to black with a chain-link cage */
+.sport-bg--mma {
+  background-color: #1a0507;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(0, 0, 0, 0.45) 0 2px, transparent 2px 30px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.45) 0 2px, transparent 2px 30px),
+    radial-gradient(ellipse at 50% 40%, #6b1016 0%, #2a070a 60%, #050101 100%);
+}
