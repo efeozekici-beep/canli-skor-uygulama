@@ -1,5 +1,9 @@
-import { useEffect, useState } from 'react'
-import { getEvents, getMatchDetail } from '../../services/matchDetailService'
+import { useEffect, useRef, useState } from 'react'
+import { getEvents, getMatchDetail, invalidateMatch } from '../../services/matchDetailService'
+import { applyLive, getLiveEvents, liveGoalCount } from '../../services/liveService'
+import { isGoal } from '../../lib/events'
+import type { Match } from '../../types/match'
+import type { MatchEvent } from '../../types/matchDetail'
 import { useDetailData } from '../../hooks/useDetailData'
 import { useFavorites } from '../../hooks/useFavorites'
 import MatchHeader from './MatchHeader'
@@ -19,6 +23,11 @@ interface Props {
   onClose: () => void
 }
 
+// Canlı maçta olaylar (kart, değişiklik) için düzenli yenileme; goller canlı skordan anında yakalanır
+const LIVE_POLL_MS = 30_000
+const EVENTS_REFRESH_MS = 10 * 60_000
+const MIN_REFETCH_GAP_MS = 65_000
+
 export default function MatchDetailPanel({ matchId, variant, onClose }: Props) {
   const [tab, setTab] = useState<DetailTab>('details')
   const [highlightedPlayerId, setHighlightedPlayerId] = useState<string | null>(null)
@@ -31,10 +40,51 @@ export default function MatchDetailPanel({ matchId, variant, onClose }: Props) {
     return () => window.clearInterval(timer)
   }, [])
 
-  const detailQuery = useDetailData(`detail:${matchId}:${tick}`, () => getMatchDetail(matchId))
+  // version: canlı maçta yeni veri çekilince artar; olaylar ve sekmeler yeniden yüklenir
+  const [version, setVersion] = useState(0)
+  const detailQuery = useDetailData(`detail:${matchId}:${tick}:${version}`, () => getMatchDetail(matchId))
   const detail = detailQuery.data ?? detailQuery.previous
   // Gol atanlar başlıkta da gösterildiği için olaylar en başta yüklenir (Ayrıntılar sekmesiyle aynı önbellek).
-  const events = useDetailData(`events:${matchId}`, () => getEvents(matchId))
+  const events = useDetailData(`events:${matchId}:${version}`, () => getEvents(matchId))
+  const eventList = events.data ?? events.previous
+
+  // Canlı katman (ESPN, kota yok): başlıktaki skor/dakika 30 sn'de bir. Gol sayısı olaylardakinden
+  // farklıysa ya da 10 dk geçtiyse maç verisi API-Football'dan yeniden çekilir.
+  const [liveMatch, setLiveMatch] = useState<Match | null>(null)
+  const latest = useRef<{ match?: Match; events?: MatchEvent[] | null; lastRefetch: number }>({ lastRefetch: 0 })
+  const liveMatchRef = useRef<Match | null>(null)
+  useEffect(() => {
+    latest.current.match = detail?.match
+    latest.current.events = eventList
+  }, [detail, eventList])
+  useEffect(() => {
+    // Sayfa açılırken veri zaten taze: ilk yenileme için en az 65 sn beklenir
+    latest.current.lastRefetch = Date.now()
+    const refetch = () => {
+      latest.current.lastRefetch = Date.now()
+      invalidateMatch(matchId)
+      setVersion((v) => v + 1)
+    }
+    const timer = window.setInterval(async () => {
+      const match = latest.current.match
+      if (!match || match.sport !== 'football' || document.visibilityState !== 'visible') return
+      if (match.status === 'finished' && liveMatchRef.current?.status !== 'live') return
+      const live = await getLiveEvents()
+      const updated = applyLive(match, live)
+      setLiveMatch(updated)
+      liveMatchRef.current = updated
+      const sinceRefetch = Date.now() - latest.current.lastRefetch
+      const known = (latest.current.events ?? []).filter(isGoal).length
+      const goals = liveGoalCount(match, live)
+      const goalMissing = goals !== null && goals !== known
+      const justFinished = updated.status === 'finished' && match.status !== 'finished'
+      if (sinceRefetch < MIN_REFETCH_GAP_MS) return
+      if (goalMissing || justFinished || (updated.status === 'live' && sinceRefetch >= EVENTS_REFRESH_MS)) refetch()
+    }, LIVE_POLL_MS)
+    return () => window.clearInterval(timer)
+  }, [matchId])
+  // Başlıkta canlı katmanın güncellediği maç (aynı maça aitse)
+  const headerMatch = liveMatch && detail && liveMatch.id === detail.match.id ? liveMatch : detail?.match
 
   // Maçın Adamı kartına tıklanınca: Kadrolar sekmesine geç ve oyuncuyu vurgula
   const showPlayer = (playerId: string) => {
@@ -84,8 +134,8 @@ export default function MatchDetailPanel({ matchId, variant, onClose }: Props) {
       ) : (
         <>
           <MatchHeader
-            match={detail.match}
-            events={events.data}
+            match={headerMatch ?? detail.match}
+            events={eventList}
             isFavorite={favorites.has(matchId)}
             onToggleFavorite={() => toggleFavorite(matchId)}
             fullPageHref={variant === 'panel' ? `#/mac/${matchId}` : undefined}
@@ -93,7 +143,7 @@ export default function MatchDetailPanel({ matchId, variant, onClose }: Props) {
           <DetailTabs active={tab} onChange={setTab} />
 
           {/* Sadece aktif sekme ekranda; verisi de ilk açıldığında yüklenir */}
-          <div role="tabpanel" className="flex-1">
+          <div key={version} role="tabpanel" className="flex-1">
             {tab === 'details' && <EventsTab match={detail.match} onPlayerSelect={showPlayer} />}
             {tab === 'lineups' && <LineupsTab match={detail.match} highlightedPlayerId={highlightedPlayerId} />}
             {tab === 'stats' && <StatsTab match={detail.match} />}

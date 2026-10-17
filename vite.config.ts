@@ -4,6 +4,7 @@ import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { handleApiRequest } from './api/proxy.ts'
 import { handlePhotosRequest } from './api/photos.ts'
+import { handleLiveRequest } from './api/live.ts'
 
 // Yerelde /api/* isteklerini canlıdaki backend koduyla (api/proxy.ts, api/photos.ts) karşılar:
 // anahtar ekleme, izinli uç noktalar ve önbellek yerelde de aynı çalışır.
@@ -11,7 +12,11 @@ function localApi(env: Record<string, string>): Plugin {
   const middleware: Connect.NextHandleFunction = (req, res, next) => {
     if (!req.url?.startsWith('/api/')) return next()
     const request = new Request(new URL(req.url, 'http://localhost'), { method: req.method })
-    const handler = req.url.startsWith('/api/photos') ? handlePhotosRequest : handleApiRequest
+    const handler = req.url.startsWith('/api/photos')
+      ? handlePhotosRequest
+      : req.url.startsWith('/api/live')
+        ? handleLiveRequest
+        : handleApiRequest
     handler(request, env)
       .then(async (response) => {
         res.statusCode = response.status

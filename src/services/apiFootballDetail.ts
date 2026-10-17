@@ -195,6 +195,37 @@ function mapStatistics(d: ApiFixtureDetail): StatItem[] | null {
   if (passIndex !== -1) {
     items.splice(passIndex + 1, 0, { key: 'passAccuracy', label: 'İsabetli pas', unit: '%', home: accuracy(home), away: accuracy(away) })
   }
+  return [...items, ...teamTotalsFromPlayers(d)]
+}
+
+// API takım istatistiğinde ikili mücadele, top kapma vb. yok: oyuncuların maç istatistikleri toplanır
+// (aynı /fixtures?id= cevabında geliyor, ek istek yok)
+function teamTotalsFromPlayers(d: ApiFixtureDetail): StatItem[] {
+  const sum = (teamId: number, pick: (s: ApiFixturePlayersTeam['players'][number]['statistics'][number]) => number | null | undefined) =>
+    (d.players.find((t) => t.team.id === teamId)?.players ?? []).reduce((total, p) => total + (pick(p.statistics[0]) ?? 0), 0)
+  const homeId = d.teams.home.id
+  const awayId = d.teams.away.id
+  if (!d.players.some((t) => t.team.id === homeId) || !d.players.some((t) => t.team.id === awayId)) return []
+
+  const totals: [string, string, (s: ApiFixturePlayersTeam['players'][number]['statistics'][number]) => number | null | undefined][] = [
+    ['duelsWon', 'Kazanılan ikili mücadele', (s) => s.duels.won],
+    ['tackles', 'Top kapma', (s) => s.tackles?.total],
+    ['interceptions', 'Araya girme', (s) => s.tackles?.interceptions],
+    ['dribbles', 'Başarılı çalım', (s) => s.dribbles?.success],
+    ['keyPasses', 'Kilit pas', (s) => s.passes.key],
+  ]
+  const items = totals
+    .map(([key, label, pick]): StatItem => ({ key, label, home: sum(homeId, pick), away: sum(awayId, pick) }))
+    .filter((i) => i.home + i.away > 0)
+  // İkili mücadelelerin kaçta kaçı kazanıldı
+  const duelRate = (teamId: number) => {
+    const total = sum(teamId, (s) => s.duels.total)
+    return total ? Math.round((sum(teamId, (s) => s.duels.won) / total) * 100) : 0
+  }
+  const duelIndex = items.findIndex((i) => i.key === 'duelsWon')
+  if (duelIndex !== -1) {
+    items.splice(duelIndex + 1, 0, { key: 'duelsRate', label: 'İkili mücadele başarısı', home: duelRate(homeId), away: duelRate(awayId), unit: '%' })
+  }
   return items
 }
 

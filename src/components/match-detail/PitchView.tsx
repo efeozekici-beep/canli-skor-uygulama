@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { LineupPlayer, TeamLineup } from '../../types/matchDetail'
+import type { LineupPlayer, Side, TeamLineup } from '../../types/matchDetail'
 import type { PlayerMatchStats } from '../../types/playerStats'
 import { shortName, teamColor } from '../../lib/team'
 import RatingBadge from './RatingBadge'
@@ -7,16 +7,20 @@ import PlayerIcons from './PlayerIcons'
 import PlayerAvatar from '../common/PlayerAvatar'
 
 interface Props {
-  lineup: TeamLineup
+  /** Tek takım: bütün saha. İki takım: ev sahibi alt yarı, deplasman üst yarı. */
+  teams: { lineup: TeamLineup; side: Side }[]
   statsById: Map<string, PlayerMatchStats>
   showRatings: boolean
   highlightedId: string | null
-  onPlayerClick: (player: LineupPlayer) => void
+  onPlayerClick: (player: LineupPlayer, side: Side) => void
 }
+
+// Takımın sahada kapladığı alan
+type Area = 'full' | 'bottom' | 'top'
 
 // Her oyuncunun sahadaki yerini (yüzde olarak) hesaplar.
 // grid "satır:sütun" ise onu kullanır, yoksa dizilişe göre sırayla dağıtır.
-function placePlayers(lineup: TeamLineup) {
+function placePlayers(lineup: TeamLineup, area: Area) {
   // grid yoksa kullanılacak yerler: 4-3-3 -> [1:1] [2:1..2:4] [3:1..3:3] [4:1..4:3]
   const fallback: { row: number; col: number }[] = []
   ;[1, ...lineup.formation.split('-').map(Number)].forEach((count, r) => {
@@ -35,15 +39,19 @@ function placePlayers(lineup: TeamLineup) {
   const perRow = new Map<number, number>()
   cells.forEach((c) => perRow.set(c.row, Math.max(perRow.get(c.row) ?? 0, c.col)))
 
-  return cells.map((c) => ({
-    player: c.player,
-    x: (c.col / ((perRow.get(c.row) ?? 1) + 1)) * 100,
-    // Kaleci altta (%7), forvetler üstte (%87)
-    y: rowCount > 1 ? 7 + ((c.row - 1) * 80) / (rowCount - 1) : 50,
-  }))
+  return cells.map((c) => {
+    const x = (c.col / ((perRow.get(c.row) ?? 1) + 1)) * 100
+    // 0: kaleci, 1: en öndeki sıra
+    const t = rowCount > 1 ? (c.row - 1) / (rowCount - 1) : 0.5
+    // Tek takım: kaleci altta (%7), forvetler üstte (%87). İki takımda her takım kendi yarısında;
+    // üstteki takım ayna gibi çevrilir (kalecisi en üstte, sol kanadı izleyicinin sağında)
+    if (area === 'full') return { player: c.player, x, y: 7 + t * 80 }
+    if (area === 'bottom') return { player: c.player, x, y: 5 + t * 38 }
+    return { player: c.player, x: 100 - x, y: 95 - t * 38 }
+  })
 }
 
-export default function PitchView({ lineup, statsById, showRatings, highlightedId, onPlayerClick }: Props) {
+export default function PitchView({ teams, statsById, showRatings, highlightedId, onPlayerClick }: Props) {
   const highlightedRef = useRef<HTMLButtonElement>(null)
 
   // Vurgulanan oyuncuyu ortaya getir. scrollIntoView tüm sayfayı da kaydırdığı için
@@ -66,9 +74,18 @@ export default function PitchView({ lineup, statsById, showRatings, highlightedI
   }, [highlightedId])
 
   const line = 'absolute border-2 border-white/35'
+  const both = teams.length > 1
+  const placed = teams.flatMap(({ lineup, side }) =>
+    placePlayers(lineup, !both ? 'full' : side === 'home' ? 'bottom' : 'top').map((p) => ({ ...p, side, lineup })),
+  )
 
   return (
-    <div className="relative mx-auto aspect-[68/96] w-full max-w-md overflow-hidden rounded-xl bg-[#1b6334] bg-[repeating-linear-gradient(180deg,rgba(255,255,255,0.05)_0_10%,transparent_10%_20%)]">
+    // İki takımda saha daha uzun: her yarıda bir takımın bütün sıraları sığsın
+    <div
+      className={`relative mx-auto w-full max-w-md overflow-hidden rounded-xl bg-[#1b6334] bg-[repeating-linear-gradient(180deg,rgba(255,255,255,0.05)_0_10%,transparent_10%_20%)] ${
+        both ? 'aspect-[68/132]' : 'aspect-[68/96]'
+      }`}
+    >
       {/* Saha çizgileri */}
       <div className={`${line} inset-[3%] rounded-sm`} />
       <div className="absolute inset-x-[3%] top-1/2 border-t-2 border-white/35" />
@@ -78,16 +95,29 @@ export default function PitchView({ lineup, statsById, showRatings, highlightedI
       <div className={`${line} bottom-[3%] left-1/2 h-[15%] w-[58%] -translate-x-1/2 border-b-0`} />
       <div className={`${line} bottom-[3%] left-1/2 h-[6%] w-[26%] -translate-x-1/2 border-b-0`} />
 
+      {/* İki takımda her yarının köşesinde takım adı ve diziliş */}
+      {both &&
+        teams.map(({ lineup, side }) => (
+          <span
+            key={side}
+            className={`absolute left-[4%] max-w-[36%] truncate rounded bg-black/35 px-1.5 py-0.5 text-[10px] font-semibold text-white/85 ${
+              side === 'home' ? 'bottom-[3.5%]' : 'top-[3.5%]'
+            }`}
+          >
+            {lineup.team.name} · {lineup.formation}
+          </span>
+        ))}
+
       {/* Oyuncular */}
-      {placePlayers(lineup).map(({ player, x, y }) => {
+      {placed.map(({ player, x, y, side, lineup }) => {
         const stats = statsById.get(player.id)
         const isHighlighted = player.id === highlightedId
         return (
           <button
-            key={player.id}
+            key={`${side}-${player.id}`}
             ref={isHighlighted ? highlightedRef : undefined}
             type="button"
-            onClick={() => onPlayerClick(player)}
+            onClick={() => onPlayerClick(player, side)}
             aria-label={`${player.number} ${player.name}`}
             style={{ left: `${x}%`, bottom: `${y}%` }}
             className="absolute flex w-[4.75rem] -translate-x-1/2 translate-y-1/2 flex-col items-center"

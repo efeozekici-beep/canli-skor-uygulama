@@ -110,16 +110,12 @@ export function zonesByRank(raw: EspnStandings): Map<number, string> {
   return zones
 }
 
-// ESPN oyuncu fotoğrafı: id'den üretilir; yoksa PlayerAvatar baş harfe döner
-const headshot = (id: string) => `https://a.espncdn.com/combiner/i?img=/i/headshots/soccer/players/full/${id}.png&w=96&h=96`
-
 export function mapLeaders(raw: EspnStatistics, statName: 'goalsLeaders' | 'assistsLeaders'): PlayerStatEntry[] | null {
   const leaders = raw.stats?.find((s) => s.name === statName)?.leaders
   if (!leaders?.length) return null
   return leaders.map((l) => ({
     playerId: `espn-${l.athlete.id}`,
     name: l.athlete.displayName,
-    photo: headshot(l.athlete.id),
     team: { id: `espn-${l.athlete.team?.id ?? ''}`, name: teamName(l.athlete.team), logo: logoOf(l.athlete.team) },
     value: l.value,
   }))

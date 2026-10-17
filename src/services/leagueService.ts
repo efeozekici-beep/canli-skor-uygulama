@@ -5,10 +5,11 @@ import { MOCK_MATCHES } from '../data/mockMatches'
 import { fetchMatches, knownMatchesForDate, registerMatches } from './matchService'
 import { readStore, writeStore } from '../lib/storageCache'
 import { currentSeasonFor } from '../lib/league'
-import { matchTeamIds, teamIdOf } from '../lib/team'
+import { matchTeamIds, sameTeamName, teamIdOf } from '../lib/team'
 import { apiLeagueId, leagueSourceFor } from '../config/leagueSources'
 import * as espn from './providers/espnSoccer'
 import * as footballData from './providers/footballData'
+import { getPlayerPhotos } from './photoService'
 
 // Lig sayfasının tek veri kapısı. Bileşenler sadece bu fonksiyonları çağırır.
 // API-Football'un ücretsiz planı bu sezonun lig verisini vermediği için (src/config/leagueSources.ts):
@@ -100,7 +101,11 @@ async function getTopPlayers(leagueId: string, season: number, kind: PlayerStatK
   // Ücretsiz kaynaklarda kart listesi yok: boş durum gösterilir
   if (kind === 'yellow' || kind === 'red') return null
   const raw = await espn.getStatistics(source.espn, season)
-  return raw ? espn.mapLeaders(raw, kind === 'goals' ? 'goalsLeaders' : 'assistsLeaders') : null
+  const list = raw ? espn.mapLeaders(raw, kind === 'goals' ? 'goalsLeaders' : 'assistsLeaders') : null
+  if (!list) return null
+  // ESPN futbolcu fotoğrafı vermiyor: kendi backend'imiz Wikipedia'dan bulur (ilk 20 oyuncu); bulunamazsa baş harfler
+  const photos = await getPlayerPhotos('football', list.slice(0, 20).map((p) => p.name)).catch(() => ({}) as Record<string, string | null>)
+  return list.map((p) => ({ ...p, photo: photos[p.name] ?? undefined }))
 }
 
 export const getTopScorers = (leagueId: string, season: number) => getTopPlayers(leagueId, season, 'goals')
@@ -144,22 +149,11 @@ export async function getLeagueFixtures(leagueId: string, season: number, kind: 
 // ---------- Lig maçından maç sayfasına ----------
 // football-data / ESPN maçlarının id'si API-Football'unkinden farklı ("fd-123", "espn-456").
 // Maç sayfası API-Football'dan açıldığı için o günün listesinde aynı ligde aynı takımların maçı aranır.
-const nameTokens = (name: string) =>
-  teamIdOf(name)
-    .split('-')
-    .filter((t) => t.length > 2 && !['fc', 'afc', 'cf', 'club', 'calcio', 'sport', 'united', 'city'].includes(t))
-
-const sameTeam = (a: string, b: string) => {
-  const ta = nameTokens(a)
-  const tb = nameTokens(b)
-  return ta.some((t) => tb.includes(t)) || teamIdOf(a) === teamIdOf(b)
-}
-
 export async function resolveLeagueMatch(match: Match): Promise<string | null> {
   if (!/^(fd|espn)-/.test(match.id)) return match.id
   const day = await fetchMatches('football', new Date(match.startTime))
   const leagueId = apiLeagueId(match.leagueId)
-  const found = day.find((m) => m.leagueId === leagueId && sameTeam(m.homeTeam, match.homeTeam) && sameTeam(m.awayTeam, match.awayTeam))
+  const found = day.find((m) => m.leagueId === leagueId && sameTeamName(m.homeTeam, match.homeTeam) && sameTeamName(m.awayTeam, match.awayTeam))
   return found?.id ?? null
 }
 

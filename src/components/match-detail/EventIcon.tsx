@@ -1,12 +1,58 @@
+import { useId } from 'react'
 import type { MatchEventKind } from '../../types/matchDetail'
 
 // Gol topu, kartlar ve değişiklik okları için küçük SVG ikonlar.
 
-function Ball({ className }: { className: string }) {
+// Klasik futbol topu: beyaz top, ortada siyah beşgen, kenarlarda yarım yamalar.
+// own: kendi kalesine gol (yamalar kırmızı)
+const PATCH_ANGLES = [-90, -18, 54, 126, 198]
+
+// Merkezi (cx, cy) olan çemberde verilen açıdaki nokta
+const point = (angle: number, r: number, cx = 10, cy = 10): [number, number] => {
+  const rad = (angle * Math.PI) / 180
+  return [cx + r * Math.cos(rad), cy + r * Math.sin(rad)]
+}
+const pentagon = (r: number, cx = 10, cy = 10, rotate = 0) =>
+  PATCH_ANGLES.map((a) => point(a + rotate, r, cx, cy).map((n) => n.toFixed(2)).join(',')).join(' ')
+
+function Ball({ className, own = false }: { className: string; own?: boolean }) {
+  const clipId = useId()
+  const dark = own ? '#ef4444' : '#111814'
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true" className={className}>
-      <circle cx="10" cy="10" r="8.5" fill="none" stroke="currentColor" strokeWidth="1.6" />
-      <path d="m10 6 3 2.2-1.1 3.6H8.1L7 8.2 10 6Z" fill="currentColor" />
+      <defs>
+        <clipPath id={clipId}>
+          <circle cx="10" cy="10" r="9" />
+        </clipPath>
+      </defs>
+      <circle cx="10" cy="10" r="9" fill="#fff" />
+      <g clipPath={`url(#${clipId})`} fill={dark} stroke={dark} strokeWidth="0.9" strokeLinejoin="round">
+        <polygon points={pentagon(3.2)} />
+        {PATCH_ANGLES.map((a) => {
+          const [x1, y1] = point(a, 3.2)
+          const [x2, y2] = point(a, 6.6)
+          const [px, py] = point(a, 9.6)
+          return (
+            <g key={a}>
+              {/* Ortadaki beşgenden kenardaki yarım yamaya dikiş çizgisi */}
+              <line x1={x1} y1={y1} x2={x2} y2={y2} />
+              <polygon points={pentagon(2.9, px, py, 180)} />
+            </g>
+          )
+        })}
+      </g>
+      <circle cx="10" cy="10" r="9" fill="none" stroke={dark} strokeWidth="1" />
+    </svg>
+  )
+}
+
+// Önden kale: beyaz direkler ve üst direk, arkada silik file çizgileri, altta zemin çizgisi
+function Goal({ className }: { className: string }) {
+  return (
+    <svg viewBox="0 0 20 20" aria-hidden="true" className={className}>
+      <path d="M4.5 6.5v10M8 6.5v10M11.5 6.5v10M15 6.5v10M2.5 10h15M2.5 13.5h15" stroke="#fff" strokeOpacity="0.35" strokeWidth="0.8" />
+      <path d="M2.5 17V4.5h15V17" fill="none" stroke="#fff" strokeWidth="1.8" strokeLinejoin="round" />
+      <path d="M1 17h18" stroke="#fff" strokeOpacity="0.6" strokeWidth="1.2" strokeLinecap="round" />
     </svg>
   )
 }
@@ -28,14 +74,18 @@ export default function EventIcon({ kind }: { kind: MatchEventKind }) {
   switch (kind) {
     case 'goal':
     case 'penalty':
-      return <Ball className="size-4 text-white" />
+      return <Ball className="size-4" />
     case 'own-goal':
-      return <Ball className="size-4 text-red-400" />
+      return <Ball className="size-4" own />
     case 'missed-penalty':
+      // Kale + sağ altta kırmızı çarpı rozeti
       return (
         <span className="relative inline-grid">
-          <Ball className="size-4 text-white/50" />
-          <span aria-hidden="true" className="absolute inset-0 m-auto h-0.5 w-5 -rotate-45 bg-red-400" />
+          <Goal className="size-4" />
+          <svg viewBox="0 0 10 10" aria-hidden="true" className="absolute -right-1 -bottom-1 size-2.5">
+            <circle cx="5" cy="5" r="4.5" fill="#ef4444" stroke="#131b16" strokeWidth="1" />
+            <path d="M3.4 3.4l3.2 3.2M6.6 3.4L3.4 6.6" stroke="#fff" strokeWidth="1.3" strokeLinecap="round" />
+          </svg>
         </span>
       )
     case 'yellow':

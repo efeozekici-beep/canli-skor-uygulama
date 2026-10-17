@@ -20,6 +20,11 @@ export interface PlayerMatchStats {
   passAccuracy: number | null
   duelsWon: number | null
   duelsTotal: number | null
+  /** Oyuncu karşılaştırma radarı için (örnek veride yok) */
+  keyPasses?: number | null
+  tackles?: number | null
+  interceptions?: number | null
+  dribbles?: number | null
   yellow: number
   red: number
   /** Oyuna girdiği / oyundan çıktığı dakika */
@@ -36,6 +41,9 @@ export interface ApiPlayerStatistics {
   passes: { total: number | null; key: number | null; accuracy: string | number | null }
   duels: { total: number | null; won: number | null }
   cards: { yellow: number | null; red: number | null }
+  // Takım toplamları için (maç istatistiklerinde ikili mücadele, top kapma...)
+  tackles?: { total: number | null; blocks: number | null; interceptions: number | null }
+  dribbles?: { attempts: number | null; success: number | null }
 }
 
 export interface ApiFixturePlayersTeam {

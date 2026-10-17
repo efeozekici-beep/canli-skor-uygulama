@@ -2,6 +2,8 @@ import type { Match } from '../types/match'
 import { formatTime } from '../lib/date'
 import TeamLogo from './TeamLogo'
 import StarIcon from './StarIcon'
+import GoalScore from './common/GoalScore'
+import { useGoal } from '../hooks/useGoal'
 
 interface Props {
   match: Match
@@ -36,6 +38,10 @@ function StatusCell({ match }: { match: Match }) {
 export default function MatchRow({ match, isFavorite, isSelected, onToggleFavorite, onSelect }: Props) {
   const { status, homeScore, awayScore } = match
   const hasScore = status !== 'upcoming' && homeScore !== null && awayScore !== null
+  // Canlı skor güncellenip skor artınca gol animasyonu (sayfa açılırken oynamaz)
+  const homeGoal = useGoal(homeScore)
+  const awayGoal = useGoal(awayScore)
+  const lastGoal = Math.max(homeGoal ?? -1, awayGoal ?? -1)
 
   // Maç bitince kaybeden taraf soluklaşır
   const dim = (own: number | null, other: number | null) =>
@@ -45,6 +51,8 @@ export default function MatchRow({ match, isFavorite, isSelected, onToggleFavori
     <div className={`match-row relative ${isSelected ? 'bg-[rgba(31,51,38,0.7)]' : ''}`}>
       {/* Son açılan maçın solunda yeşil şerit */}
       {isSelected && <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1 bg-accent" />}
+      {/* Gol olunca satır hafifçe yeşil parlar */}
+      {lastGoal >= 0 && <span key={`${homeGoal}-${awayGoal}`} aria-hidden="true" className="goal-flash pointer-events-none absolute inset-0 bg-accent/15" />}
 
       {/* Satır: durum | ev sahibi (sağa yaslı) | skor | deplasman (sola yaslı). Tıklayınca maç sayfası açılır. */}
       <button
@@ -64,8 +72,14 @@ export default function MatchRow({ match, isFavorite, isSelected, onToggleFavori
         </span>
 
         {/* Skor: canlıda yumuşak kırmızı, başlamamışta soluk tire */}
-        <span className={`match-score tabular-nums ${status === 'live' ? 'text-[#fca5a5]' : ''} ${hasScore ? '' : 'text-white/35'}`}>
-          {hasScore ? `${homeScore} - ${awayScore}` : '-'}
+        <span className={`match-score relative overflow-hidden tabular-nums ${status === 'live' ? 'text-[#fca5a5]' : ''} ${hasScore ? '' : 'text-white/35'}`}>
+          {hasScore ? (
+            <>
+              <GoalScore value={homeScore} goal={homeGoal} side="home" /> - <GoalScore value={awayScore} goal={awayGoal} side="away" />
+            </>
+          ) : (
+            '-'
+          )}
         </span>
 
         <span className="match-team">

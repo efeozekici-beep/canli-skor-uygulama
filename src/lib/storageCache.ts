@@ -17,6 +17,14 @@ export function readStore<T>(key: string, maxAgeMs: number, kind: StoreKind = 's
   }
 }
 
+export function removeStore(key: string, kind: StoreKind = 'session') {
+  try {
+    storage(kind).removeItem(key)
+  } catch {
+    // Depolama kapalı: zaten saklanmamıştır.
+  }
+}
+
 export function writeStore<T>(key: string, value: T, kind: StoreKind = 'session') {
   try {
     storage(kind).setItem(key, JSON.stringify({ at: Date.now(), value }))

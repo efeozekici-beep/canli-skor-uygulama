@@ -2,11 +2,23 @@ import type { Match } from '../../types/match'
 import { getStandings } from '../../services/matchDetailService'
 import { useDetailData } from '../../hooks/useDetailData'
 import { matchTeamIds } from '../../lib/team'
+import { currentSeasonFor } from '../../lib/league'
+import { leagueSourceFor } from '../../config/leagueSources'
 import TeamLogo from '../TeamLogo'
+import StandingsTable from '../league/StandingsTable'
 import { EmptyState, ErrorState, LoadingState } from './TabStates'
 
 // Ligin puan tablosu; bu maçtaki iki takımın satırı vurgulanır.
+// API-Football'un ücretsiz planı bu sezonu vermediği için kaynağı olan liglerde (ESPN / football-data)
+// lig sayfasındaki tablo kullanılır; diğerlerinde eski API-Football tablosu.
 export default function StandingsTab({ match }: { match: Match }) {
+  if (leagueSourceFor(match.leagueId)) {
+    return <StandingsTable leagueId={match.leagueId} season={match.season ?? currentSeasonFor()} highlightTeams={[match.homeTeam, match.awayTeam]} />
+  }
+  return <ApiFootballStandings match={match} />
+}
+
+function ApiFootballStandings({ match }: { match: Match }) {
   const ids = matchTeamIds(match)
   const standings = useDetailData(`standings:${match.leagueId}:${match.season ?? ''}`, () =>
     getStandings(match.leagueId, match.season, [ids.home, ids.away]),

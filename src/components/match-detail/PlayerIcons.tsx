@@ -10,10 +10,10 @@ export default function PlayerIcons({ stats }: { stats?: PlayerMatchStats }) {
   return (
     <span className="inline-flex items-center gap-0.5">
       {Array.from({ length: goals }, (_, i) => (
-        <Ball key={`g${i}`} className="size-3 text-white" />
+        <Ball key={`g${i}`} className="size-3" />
       ))}
       {Array.from({ length: ownGoals }, (_, i) => (
-        <Ball key={`og${i}`} className="size-3 text-red-400" />
+        <Ball key={`og${i}`} className="size-3" own />
       ))}
       {assists > 0 && (
         <span title="Asist" className="rounded-sm bg-white/90 px-0.5 text-[8px] leading-3 font-black text-pitch-950">

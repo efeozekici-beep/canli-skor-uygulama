@@ -8,7 +8,7 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true'
 
 // The free API-Football plan allows 100 requests a day, and one request
 // returns a whole day, so each day is cached in sessionStorage.
-const TTL_TODAY = 90_000
+const TTL_TODAY = 10 * 60_000 // canlı skor/dakika liveService'ten 30 sn'de bir gelir
 const TTL_PAST = 12 * 60 * 60_000
 const TTL_FUTURE = 30 * 60_000
 

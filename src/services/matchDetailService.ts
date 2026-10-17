@@ -6,7 +6,7 @@ import { MOCK_MATCHES } from '../data/mockMatches'
 import { findMatchById } from './matchService'
 import { fetchCurrentCoach, fetchFixtureBundle, fetchHeadToHead, fetchStandings, type FixtureBundle } from './apiFootballDetail'
 import { matchTeamIds } from '../lib/team'
-import { readStore, writeStore } from '../lib/storageCache'
+import { readStore, removeStore, writeStore } from '../lib/storageCache'
 import { getPlayerPhotos } from './photoService'
 
 // Maç detayının tek veri kapısı. Bileşenler sadece bu fonksiyonları çağırır.
@@ -42,7 +42,7 @@ const delay = <T>(value: T, ms = 300) => new Promise<T>((resolve) => setTimeout(
 // ---------- API: tek maç paketi ----------
 // Biten maç değişmez (6 saat sakla), canlı maç 1 dakikada bir, başlamamış maç 10 dakikada bir yenilenir.
 // Dönüştürme mantığı değişirse sürümü artır, eski kayıtlar kullanılmaz.
-const bundleKey = (id: string) => `canliskor:fixture:v5:${id}`
+const bundleKey = (id: string) => `canliskor:fixture:v7:${id}`
 const bundleTtl = (b: FixtureBundle) => (b.match.status === 'finished' ? 6 * 60 * 60_000 : b.match.status === 'live' ? 60_000 : 10 * 60_000)
 
 function peekBundle(id: string): FixtureBundle | null {
@@ -58,6 +58,13 @@ function getBundle(id: string): Promise<FixtureBundle | null> {
     if (bundle) writeStore(bundleKey(id), bundle)
     return bundle
   })
+}
+
+// Canlı maçta yeni olay olunca (gol vb.): bu maçın önbelleklerini sil, sekmeler yeniden çeksin.
+// Sunucu canlı maç detayını 1 dk sakladığı için en fazla dakikada bir yeni veri gelir.
+export function invalidateMatch(id: string) {
+  for (const key of cache.keys()) if (key.endsWith(`:${id}`)) cache.delete(key)
+  removeStore(bundleKey(id))
 }
 
 // ---------- Dışa açılan fonksiyonlar ----------

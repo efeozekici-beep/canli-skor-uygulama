@@ -41,6 +41,10 @@ export function mapApiFixturePlayers(response: ApiFixturePlayersTeam[], homeTeam
         passAccuracy: passAccuracyPercent(s?.passes.accuracy ?? null, passes),
         duelsWon: toNumber(s?.duels.won),
         duelsTotal: toNumber(s?.duels.total),
+        keyPasses: toNumber(s?.passes.key),
+        tackles: toNumber(s?.tackles?.total),
+        interceptions: toNumber(s?.tackles?.interceptions),
+        dribbles: toNumber(s?.dribbles?.success),
         yellow: s?.cards.yellow ?? 0,
         red: s?.cards.red ?? 0,
         subIn: null, // Değişiklik dakikaları da olaylardan gelir.

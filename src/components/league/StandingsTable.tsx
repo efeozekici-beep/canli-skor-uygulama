@@ -3,7 +3,7 @@ import type { LeagueStandingRow, StandingsView } from '../../types/league'
 import { getStandings, teamsPlayingToday } from '../../services/leagueService'
 import { useDetailData } from '../../hooks/useDetailData'
 import { rowsForView, translateZone, zoneColor } from '../../lib/league'
-import { teamIdOf } from '../../lib/team'
+import { sameTeamName, teamIdOf } from '../../lib/team'
 import TeamLogo from '../TeamLogo'
 import LeagueTabs from './LeagueTabs'
 import FormBadges from './FormBadges'
@@ -12,6 +12,8 @@ import { EmptyState, ErrorState, LoadingState } from '../match-detail/TabStates'
 interface Props {
   leagueId: string
   season: number
+  /** Maç sayfasından açıldıysa o maçın iki takımı (adla eşleştirilir, satırları vurgulanır) */
+  highlightTeams?: string[]
 }
 
 const VIEWS: { id: StandingsView; label: string }[] = [
@@ -21,11 +23,12 @@ const VIEWS: { id: StandingsView; label: string }[] = [
 ]
 
 // Tablo tek bir grup içindir; Dünya Kupası gibi turnuvalarda her grup için ayrı çizilir.
-function GroupTable({ rows, view, zones, playingToday }: {
+function GroupTable({ rows, view, zones, playingToday, highlightTeams }: {
   rows: LeagueStandingRow[]
   view: StandingsView
   zones: Map<string, string>
   playingToday: Set<string>
+  highlightTeams: string[]
 }) {
   const items = rowsForView(rows, view)
   // Bölgeler sadece genel tabloda anlamlı (ev/deplasman tablosunda sıra farklı)
@@ -55,7 +58,9 @@ function GroupTable({ rows, view, zones, playingToday }: {
           // Bölge değiştiğinde (ve açıklama varsa) bölüm başlığı
           const startsZone = description !== null && description !== previous
           const color = description ? zones.get(description) : undefined
-          const isPlayingToday = playingToday.has(row.team.id) || playingToday.has(teamIdOf(row.team.name))
+          const isMatchTeam = highlightTeams.some((name) => sameTeamName(name, row.team.name))
+          // Maç sayfasında "bugün oynuyor" kırmızısı yerine maçın iki takımı vurgulanır
+          const isPlayingToday = highlightTeams.length === 0 && (playingToday.has(row.team.id) || playingToday.has(teamIdOf(row.team.name)))
           const diff = split.goalsFor - split.goalsAgainst
           return (
             <Fragment key={row.team.id}>
@@ -66,7 +71,7 @@ function GroupTable({ rows, view, zones, playingToday }: {
                   </td>
                 </tr>
               )}
-              <tr className="border-t border-white/5">
+              <tr className={`border-t border-white/5 ${isMatchTeam ? 'bg-accent/10 font-semibold' : ''}`}>
                 <td className="relative px-1.5 py-2.5 text-center font-semibold">
                   {/* Bölge rengi: sıra numarasının solunda ince çizgi */}
                   {color && <span aria-hidden="true" className="absolute inset-y-1.5 left-0 w-1 rounded-full" style={{ backgroundColor: color }} />}
@@ -101,7 +106,7 @@ function GroupTable({ rows, view, zones, playingToday }: {
 }
 
 // Puan Durumu sekmesi: Tümü / Ev sahibi / Deplasman, bölge grupları ve renk açıklaması
-export default function StandingsTable({ leagueId, season }: Props) {
+export default function StandingsTable({ leagueId, season, highlightTeams = [] }: Props) {
   const [view, setView] = useState<StandingsView>('all')
   const standings = useDetailData(`standings:${leagueId}:${season}`, () => getStandings(leagueId, season))
 
@@ -115,7 +120,7 @@ export default function StandingsTable({ leagueId, season }: Props) {
   for (const row of groups.flatMap((g) => g.rows)) {
     if (row.description && !zones.has(row.description)) zones.set(row.description, zoneColor(row.description, zones.size))
   }
-  const playingToday = teamsPlayingToday(leagueId)
+  const playingToday = highlightTeams.length > 0 ? new Set<string>() : teamsPlayingToday(leagueId)
   // Kaynak ev/deplasman ayrımı vermiyorsa sadece genel tablo
   const hasSplits = standings.data?.hasSplits !== false
   const activeView = hasSplits ? view : 'all'
@@ -128,7 +133,7 @@ export default function StandingsTable({ leagueId, season }: Props) {
         <section key={group.name}>
           {/* Birden fazla grup varsa her tablonun başlığı (Grup A, Grup B...) */}
           {groups.length > 1 && <h3 className="mb-2 px-1 text-sm font-semibold text-white/80">{group.name}</h3>}
-          <GroupTable rows={group.rows} view={activeView} zones={zones} playingToday={playingToday} />
+          <GroupTable rows={group.rows} view={activeView} zones={zones} playingToday={playingToday} highlightTeams={highlightTeams} />
         </section>
       ))}
 

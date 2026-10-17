@@ -5,6 +5,8 @@ import { isGoal, minuteText } from '../../lib/events'
 import TeamLogo from '../TeamLogo'
 import StarIcon from '../StarIcon'
 import { Ball } from './EventIcon'
+import GoalScore from '../common/GoalScore'
+import { useGoal } from '../../hooks/useGoal'
 
 interface Props {
   match: Match
@@ -38,6 +40,9 @@ function statusText(match: Match) {
 
 export default function MatchHeader({ match, events, isFavorite, onToggleFavorite, fullPageHref }: Props) {
   const hasScore = match.status !== 'upcoming' && match.homeScore !== null && match.awayScore !== null
+  // Canlı skor güncellenip skor artınca gol animasyonu
+  const homeGoal = useGoal(match.homeScore)
+  const awayGoal = useGoal(match.awayScore)
   const status = statusText(match)
   const homeScorers = events ? scorers(events, 'home') : []
   const awayScorers = events ? scorers(events, 'away') : []
@@ -70,8 +75,14 @@ export default function MatchHeader({ match, events, isFavorite, onToggleFavorit
         {star}
         {team(match.homeTeam, match.homeLogo)}
         <div className="flex flex-col items-center px-1 pt-2">
-          <span className={`text-4xl font-extrabold tracking-tight tabular-nums sm:text-5xl ${match.status === 'live' ? 'text-red-400' : ''}`}>
-            {hasScore ? `${match.homeScore} - ${match.awayScore}` : 'vs'}
+          <span className={`relative overflow-hidden px-1 text-4xl font-extrabold tracking-tight tabular-nums sm:text-5xl ${match.status === 'live' ? 'text-red-400' : ''}`}>
+            {hasScore ? (
+              <>
+                <GoalScore value={match.homeScore} goal={homeGoal} side="home" size="lg" /> - <GoalScore value={match.awayScore} goal={awayGoal} side="away" size="lg" />
+              </>
+            ) : (
+              'vs'
+            )}
           </span>
           <span className={`mt-1 text-sm font-semibold whitespace-nowrap ${status.className}`}>{status.text}</span>
         </div>
@@ -87,7 +98,7 @@ export default function MatchHeader({ match, events, isFavorite, onToggleFavorit
               <li key={s}>{s}</li>
             ))}
           </ul>
-          <Ball className="mt-0.5 size-3.5 text-white/50" />
+          <Ball className="mt-0.5 size-3.5 opacity-60" />
           <ul className="space-y-0.5">
             {awayScorers.map((s) => (
               <li key={s}>{s}</li>

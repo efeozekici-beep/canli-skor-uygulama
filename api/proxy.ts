@@ -41,14 +41,15 @@ function todayIn(timeZone: string) {
   }
 }
 
-// Tarihli maç listesi: bugün ve dün 1-5 dk (gece yarısını geçen maçlar sürebilir),
-// daha eski günler 6 saat, gelecek günler 30 dk
-function dateTtl(q: URLSearchParams) {
+// Tarihli maç listesi. Futbolda canlı skor ayrı katmandan (api/live.ts, ESPN) geldiği için bugünün
+// API-Football listesi 10 dk saklanır: kota (günde 100) bütün güne yetsin. Basketbol/NBA'nın canlı
+// katmanı yok, onlarda bugün 1 dk. Dün 30 dk (gece yarısını geçen maçlar), eski günler 6 saat, gelecek 30 dk.
+function dateTtl(q: URLSearchParams, todayTtl = MIN) {
   const date = q.get('date') ?? ''
   const today = todayIn(q.get('timezone') ?? 'UTC')
   const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - DAY * 1000).toISOString().slice(0, 10)
-  if (date === today) return MIN
-  if (date === yesterday) return 5 * MIN
+  if (date === today) return todayTtl
+  if (date === yesterday) return 30 * MIN
   return date < today ? 6 * HOUR : 30 * MIN
 }
 
@@ -56,7 +57,7 @@ function dateTtl(q: URLSearchParams) {
 const FOOTBALL_DONE = new Set(['FT', 'AET', 'PEN', 'PST', 'CANC', 'ABD', 'AWD', 'WO'])
 
 function footballFixturesTtl(q: URLSearchParams, body: unknown) {
-  if (q.has('date')) return dateTtl(q)
+  if (q.has('date')) return dateTtl(q, 10 * MIN)
   if (q.has('id')) {
     // Maç detayı: bittiyse 7 gün, başlamadıysa 5 dk, canlıysa 1 dk
     const status = (body as { response?: { fixture?: { status?: { short?: string } } }[] }).response?.[0]?.fixture?.status?.short
@@ -121,13 +122,13 @@ const RULES: Record<Provider, Record<string, Rule>> = {
     '/coachs': fixed(DAY), // takımın teknik direktörü (kadroda boş gelirse)
   },
   basketball: {
-    '/games': dateTtl,
+    '/games': (q) => dateTtl(q),
     '/games/statistics/teams': fixed(2 * MIN),
     '/games/statistics/players': fixed(2 * MIN),
     '/standings': fixed(HOUR),
   },
   nba: {
-    '/games': dateTtl, // API-NBA tarihi UTC'dir (timezone parametresi yok -> UTC)
+    '/games': (q) => dateTtl(q), // API-NBA tarihi UTC'dir (timezone parametresi yok -> UTC)
     '/players/statistics': fixed(2 * MIN),
     '/players': fixed(7 * DAY),
   },

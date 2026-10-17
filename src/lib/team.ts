@@ -12,6 +12,33 @@ export function teamIdOf(name: string) {
     .replace(/^-|-$/g, '')
 }
 
+// Farklı kaynaklar aynı takımı farklı yazar ("Real Betis" / "Real Betis Balompié", "Besiktas" / "Beşiktaş").
+// Ortak ayırt edici bir kelime varsa aynı takım sayılır. Birçok kulübün adında geçen genel kelimeler
+// (FC, City, Maccabi, Dinamo...) sayılmaz: yoksa "Maccabi Haifa" ile "Maccabi Netanya" aynı sanılır.
+const GENERIC_TEAM_WORDS = new Set([
+  'fc', 'afc', 'cf', 'sc', 'club', 'calcio', 'sport', 'sporting', 'united', 'city', 'real', 'town', 'county', 'women',
+  'maccabi', 'hapoel', 'beitar', 'bnei', 'dinamo', 'dynamo', 'atletico', 'athletic', 'deportivo', 'racing', 'olympique',
+  'union', 'inter', 'rapid', 'spartak', 'lokomotiv', 'cska', 'young', 'boys', 'rovers', 'wanderers', 'saint', 'san',
+])
+const allTokens = (name: string) =>
+  teamIdOf(name)
+    .split('-')
+    .filter((t) => t.length > 2)
+// Ayırt edici kelimeler; adı sadece genel kelimelerden oluşuyorsa ("Lokomotiv") onlar
+const distinctTokens = (name: string) => {
+  const all = allTokens(name)
+  const distinct = all.filter((t) => !GENERIC_TEAM_WORDS.has(t))
+  return distinct.length > 0 ? distinct : all
+}
+
+export function sameTeamName(a: string, b: string) {
+  if (teamIdOf(a) === teamIdOf(b)) return true
+  // Birinin ayırt edici kelimesi diğerinin adında geçmeli ("Lokomotiv" ~ "Lokomotiv Moscow",
+  // ama "Maccabi Haifa" !~ "Maccabi Netanya")
+  const inName = (tokens: string[], name: string) => tokens.some((t) => allTokens(name).includes(t))
+  return inName(distinctTokens(a), b) || inName(distinctTokens(b), a)
+}
+
 // API'den id gelmişse onu, gelmemişse addan üretileni kullan.
 export function matchTeamIds(match: Match) {
   return {

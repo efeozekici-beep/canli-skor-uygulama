@@ -1,5 +1,5 @@
 // Oyuncu fotoğrafı bulucu (Vercel fonksiyonu): GET /api/photos?league=nba&names=Luka Doncic|LeBron James
-// league: nba | basketball | football-coach (futbol teknik direktörü: API-Football çoğunda boş yer tutucu resim veriyor)
+// league: nba | basketball | football (futbolcu, ESPN'de fotoğraf yok) | football-coach (API-Football çoğunda boş yer tutucu veriyor)
 // API-NBA ve API-Basketball fotoğraf vermediği için isimleri ücretsiz resmi/açık kaynaklarla eşleştirir:
 //  - NBA: ESPN kadroları (30 takım, günde bir kez çekilir)
 //  - EuroLeague / EuroCup: EuroLeague'in resmi API'si (günde bir kez)
@@ -133,6 +133,7 @@ interface WikiSearch {
 // Spora göre Wikipedia araması: arama sözcüğü + sayfa açıklamasında aranacak kelimeler (hepsi geçmeli)
 const WIKI_SEARCH = {
   basketball: { query: 'basketball', mustMatch: [/basketball/i] },
+  football: { query: 'footballer', mustMatch: [/football|soccer/i] },
   // Aynı isimde birçok futbolcu olabiliyor: açıklamada hem futbol hem teknik direktör/antrenör geçmeli
   'football-coach': { query: 'football manager', mustMatch: [/football|soccer/i, /manager|coach/i] },
 }
@@ -192,8 +193,8 @@ export async function handlePhotosRequest(request: Request, env: Env): Promise<R
   if (request.method !== 'GET') return json(405, { message: 'Sadece GET desteklenir.' })
   const url = new URL(request.url)
   const league = url.searchParams.get('league')
-  if (league !== 'nba' && league !== 'basketball' && league !== 'football-coach') {
-    return json(400, { message: 'league: nba, basketball ya da football-coach olmalı.' })
+  if (league !== 'nba' && league !== 'basketball' && league !== 'football' && league !== 'football-coach') {
+    return json(400, { message: 'league: nba, basketball, football ya da football-coach olmalı.' })
   }
   const names = [...new Set((url.searchParams.get('names') ?? '').split('|').map((n) => n.trim()).filter(Boolean))]
   if (names.length === 0 || names.length > 40 || names.some((n) => n.length > 60)) {
@@ -202,7 +203,7 @@ export async function handlePhotosRequest(request: Request, env: Env): Promise<R
 
   const index: PhotoIndex =
     league === 'nba' ? await getIndex(env, 'nba', buildNbaIndex) : league === 'basketball' ? await getIndex(env, 'euroleague', buildEuroleagueIndex) : []
-  const sport: WikiSport = league === 'football-coach' ? 'football-coach' : 'basketball'
+  const sport: WikiSport = league === 'nba' ? 'basketball' : league
   const entries = await Promise.all(
     names.map(async (name) => [name, findInIndex(name, index) ?? (await cachedWikipediaPhoto(env, name, sport))] as const),
   )

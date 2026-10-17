@@ -4,7 +4,7 @@ import { createCache } from './providers/common'
 // API-Football da teknik direktörlerin çoğunda boş yer tutucu resim veriyor.
 // Bir maçtaki bütün oyuncular tek istekte sorulur; cevap tarayıcıda 1 gün saklanır.
 
-export type PhotoLeague = 'nba' | 'basketball' | 'football-coach'
+export type PhotoLeague = 'nba' | 'basketball' | 'football' | 'football-coach'
 export type PhotoMap = Record<string, string | null>
 
 const cached = createCache('photos')
