@@ -1,9 +1,11 @@
 import { useState } from 'react'
 import type { Match } from '../../types/match'
 import type { NbaPlayerLine } from '../../types/basketball'
-import { getBasketballBoxScore } from '../../services/basketballService'
+import { getBasketballBoxScore, isNbaMatch } from '../../services/basketballService'
+import { getPlayerPhotos } from '../../services/photoService'
 import { useDetailData } from '../../hooks/useDetailData'
 import TeamLogo from '../TeamLogo'
+import PlayerAvatar from '../common/PlayerAvatar'
 import NbaPlayerPopover from './NbaPlayerPopover'
 import { EmptyState, ErrorState, LoadingState } from '../match-detail/TabStates'
 
@@ -15,14 +17,20 @@ export default function BoxScoreTab({ match }: { match: Match }) {
   const detail = useDetailData(`bb-box:${match.id}`, () => getBasketballBoxScore(match))
   const [side, setSide] = useState<'home' | 'away'>('home')
   const [selected, setSelected] = useState<{ line: NbaPlayerLine; teamName: string } | null>(null)
+  // Fotoğraflar box score geldikten sonra iki takım için tek istekte sorulur; gelmezse baş harfler kalır
+  const box = detail.data?.kind === 'matched' ? detail.data.box : null
+  const names = box ? [...box.home.players, ...box.away.players].map((p) => p.name) : []
+  const photos = useDetailData(box ? `bb-photos:${match.id}:${names.length}` : null, () =>
+    getPlayerPhotos(isNbaMatch(match) ? 'nba' : 'basketball', names),
+  )
+  const photoOf = (name: string) => photos.data?.[name] ?? undefined
 
   if (match.status === 'upcoming') return <EmptyState message="İstatistikler maç başlayınca görünecek." />
   if (detail.loading) return <LoadingState rows={8} />
   // API-NBA hata verse de maçın temel bilgileri (Özet sekmesi) API-Basketball'dan gelmeye devam eder
   if (detail.error) return <ErrorState message="Oyuncu istatistikleri şu an alınamıyor." />
-  if (!detail.data || detail.data.kind === 'no-match') return <EmptyState message="Detaylı istatistik bulunmuyor." />
+  if (!box) return <EmptyState message="Detaylı istatistik bulunmuyor." />
 
-  const box = detail.data.box
   const team = box[side]
   const th = 'px-2 py-2 font-semibold whitespace-nowrap'
   const td = 'px-2 py-2 text-center whitespace-nowrap'
@@ -76,8 +84,9 @@ export default function BoxScoreTab({ match }: { match: Match }) {
                     <button
                       type="button"
                       onClick={() => setSelected({ line: p, teamName: team.team.name })}
-                      className="flex items-center gap-1.5 text-left font-medium hover:text-accent"
+                      className="flex items-center gap-2 text-left font-medium hover:text-accent"
                     >
+                      <PlayerAvatar photo={photoOf(p.name)} name={p.name} size="sm" />
                       <span className="whitespace-nowrap">{p.name}</span>
                       {p.position && <span className="text-xs text-white/40">{p.position}</span>}
                     </button>
@@ -112,7 +121,7 @@ export default function BoxScoreTab({ match }: { match: Match }) {
       </p>
 
       {selected && (
-        <NbaPlayerPopover line={selected.line} teamName={selected.teamName} showProfile={box.profiles === 'nba'} onClose={() => setSelected(null)} />
+        <NbaPlayerPopover line={selected.line} teamName={selected.teamName} photo={photoOf(selected.line.name)} showProfile={box.profiles === 'nba'} onClose={() => setSelected(null)} />
       )}
     </div>
   )

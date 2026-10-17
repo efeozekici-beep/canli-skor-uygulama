@@ -8,13 +8,15 @@ import PlayerAvatar from '../common/PlayerAvatar'
 interface Props {
   line: NbaPlayerLine
   teamName: string
+  /** Backend'in bulduğu fotoğraf (yoksa baş harfler) */
+  photo?: string
   /** Profil sadece NBA oyuncuları için var (API-NBA); diğer liglerde sadece maç istatistiği */
   showProfile: boolean
   onClose: () => void
 }
 
 // Oyuncuya tıklayınca: maç istatistiği + (NBA'da) API-NBA profili. Profil sadece pencere açılınca çekilir.
-export default function NbaPlayerPopover({ line, teamName, showProfile, onClose }: Props) {
+export default function NbaPlayerPopover({ line, teamName, photo, showProfile, onClose }: Props) {
   const profile = useDetailData(showProfile ? `nba-player:${line.playerId}` : null, () => getNbaPlayerProfile(line.playerId))
   const closeRef = useRef<HTMLButtonElement>(null)
   const titleId = useId()
@@ -53,7 +55,7 @@ export default function NbaPlayerPopover({ line, teamName, showProfile, onClose 
         className="w-full rounded-t-2xl border border-white/10 bg-pitch-900 p-5 shadow-2xl sm:max-w-sm sm:rounded-2xl"
       >
         <div className="flex items-start gap-3">
-          <PlayerAvatar name={line.name} size="xl" />
+          <PlayerAvatar photo={photo} name={line.name} size="xl" />
           <div className="min-w-0 flex-1">
             <h3 id={titleId} className="truncate text-lg font-bold">
               {line.name}

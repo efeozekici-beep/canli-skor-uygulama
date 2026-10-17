@@ -2,16 +2,20 @@ import type { Match } from '../types/match'
 import type { FixtureKind, LeagueInfo, LeagueStandings, PlayerStatEntry, PlayerStatKind } from '../types/league'
 import { mockFixtures, mockLeagueInfo, mockPlayerStats, mockStandings } from '../data/mockLeagues'
 import { MOCK_MATCHES } from '../data/mockMatches'
-import { knownMatchesForDate, registerMatches } from './matchService'
+import { fetchMatches, knownMatchesForDate, registerMatches } from './matchService'
 import { readStore, writeStore } from '../lib/storageCache'
 import { currentSeasonFor } from '../lib/league'
 import { matchTeamIds, teamIdOf } from '../lib/team'
+import { apiLeagueId, leagueSourceFor } from '../config/leagueSources'
+import * as espn from './providers/espnSoccer'
+import * as footballData from './providers/footballData'
 
 // Lig sayfasının tek veri kapısı. Bileşenler sadece bu fonksiyonları çağırır.
-// Şimdilik mock döndürür (src/data/mockLeagues.ts). API-Football'a geçerken her fonksiyonun
-// içindeki mock çağrısını apiFootballLeague.ts'deki fetch... fonksiyonuyla değiştirmek yeterli:
-//   getStandings -> fetchLeagueStandings      getTopScorers/... -> fetchTopPlayers(kind)
-//   getLeagueFixtures -> fetchLeagueFixtures
+// API-Football'un ücretsiz planı bu sezonun lig verisini vermediği için (src/config/leagueSources.ts):
+//   - Puan durumu: büyük 12 ligde football-data.org (+ ESPN bölge renkleri), diğerlerinde ESPN
+//   - Gol / asist krallığı: ESPN (sarı/kırmızı kart listesi ücretsiz kaynaklarda yok)
+//   - Maçlar: büyük 12 ligde bütün sezon (football-data.org), diğerlerinde son/gelecek 7 gün (ESPN)
+// Listede olmayan ligler örnek veriyle (src/data/mockLeagues.ts) açılır ve "Örnek veri" etiketi gösterilir.
 // "null" dönmesi = bu lig/sezon için veri yok.
 
 // ---------- Önbellek: hafıza + localStorage ----------
@@ -43,7 +47,8 @@ const delay = <T>(value: T, ms = 250) => new Promise<T>((resolve) => setTimeout(
 // ---------- Lig bilgisi ----------
 // Ağ isteği atmadan: önce bilinen maçlardan (logo vb.), yoksa mock tanımından.
 export async function getLeague(leagueId: string): Promise<LeagueInfo | null> {
-  const known = [...knownMatchesForDate(new Date()), ...MOCK_MATCHES].find((m) => m.leagueId === leagueId)
+  const source = leagueSourceFor(leagueId)
+  const known = [...knownMatchesForDate(new Date()), ...MOCK_MATCHES].find((m) => m.leagueId === leagueId || m.leagueId === apiLeagueId(leagueId))
   const mock = mockLeagueInfo(leagueId)
   if (known) {
     return {
@@ -52,7 +57,17 @@ export async function getLeague(leagueId: string): Promise<LeagueInfo | null> {
       logo: known.leagueLogo,
       region: known.region,
       currentSeason: known.season ?? mock?.currentSeason ?? currentSeasonFor(),
-      isMock: Boolean(mock),
+      isMock: !source && Boolean(mock),
+    }
+  }
+  if (source) {
+    // Bugün maçı olmayan lig: adı ve logosu kaynak listesinden
+    return {
+      id: leagueId,
+      name: source.name,
+      logo: `https://media.api-sports.io/football/leagues/${apiLeagueId(leagueId)}.png`,
+      region: source.region,
+      currentSeason: currentSeasonFor(),
     }
   }
   return mock ?? null
@@ -60,12 +75,32 @@ export async function getLeague(leagueId: string): Promise<LeagueInfo | null> {
 
 // ---------- Puan durumu ----------
 export function getStandings(leagueId: string, season: number): Promise<LeagueStandings | null> {
-  return cached(`standings:${leagueId}:${season}`, HOUR, () => delay(mockStandings(leagueId, season)))
+  const source = leagueSourceFor(leagueId)
+  if (!source) return cached(`standings:${leagueId}:${season}`, HOUR, () => delay(mockStandings(leagueId, season)))
+  // Gerçek veri: kaynak önbellekleri (tarayıcı + sunucu) zaten var, burada ayrıca saklanmaz
+  return (async () => {
+    const espnRaw = await espn.getStandingsRaw(source.espn, season).catch(() => null)
+    if (source.footballData) {
+      const [fdRaw, matches] = await Promise.all([
+        footballData.getStandingsRaw(source.footballData, season),
+        // Ev/deplasman tablosu ve form için; alınamazsa tablo yine gösterilir
+        footballData.getMatchesRaw(source.footballData, season).catch(() => null),
+      ])
+      const zones = espnRaw ? espn.zonesByRank(espnRaw) : new Map<number, string>()
+      if (fdRaw) return footballData.mapStandings(fdRaw, matches, zones, leagueId, season)
+    }
+    return espnRaw ? espn.mapStandings(espnRaw, leagueId, season) : null
+  })()
 }
 
 // ---------- Oyuncu istatistikleri ----------
-function getTopPlayers(leagueId: string, season: number, kind: PlayerStatKind): Promise<PlayerStatEntry[] | null> {
-  return cached(`players:${kind}:${leagueId}:${season}`, HOUR, () => delay(mockPlayerStats(leagueId, season, kind)))
+async function getTopPlayers(leagueId: string, season: number, kind: PlayerStatKind): Promise<PlayerStatEntry[] | null> {
+  const source = leagueSourceFor(leagueId)
+  if (!source) return cached(`players:${kind}:${leagueId}:${season}`, HOUR, () => delay(mockPlayerStats(leagueId, season, kind)))
+  // Ücretsiz kaynaklarda kart listesi yok: boş durum gösterilir
+  if (kind === 'yellow' || kind === 'red') return null
+  const raw = await espn.getStatistics(source.espn, season)
+  return raw ? espn.mapLeaders(raw, kind === 'goals' ? 'goalsLeaders' : 'assistsLeaders') : null
 }
 
 export const getTopScorers = (leagueId: string, season: number) => getTopPlayers(leagueId, season, 'goals')
@@ -82,14 +117,50 @@ export const PLAYER_STAT_LOADERS: Record<PlayerStatKind, (leagueId: string, seas
 
 // ---------- Lig maçları ----------
 // Sonuçlar: biten maçlar yeniden eskiye. Fikstür: oynanacak maçlar yakından uzağa.
+async function loadFixtures(leagueId: string, season: number): Promise<Match[] | null> {
+  const source = leagueSourceFor(leagueId)
+  if (!source) return cached(`fixtures:${leagueId}:${season}`, FIVE_MIN, () => delay(mockFixtures(leagueId, season)))
+  const league = await getLeague(leagueId)
+  if (!league) return null
+  if (source.footballData) {
+    const raw = await footballData.getMatchesRaw(source.footballData, season)
+    if (raw) return footballData.mapMatches(raw, league, season)
+  }
+  // ESPN sadece güncel sezonun günlük maçlarını verir
+  if (season !== league.currentSeason) return null
+  return espn.getMatchesAround(source.espn, league, season, 7, 7)
+}
+
 export async function getLeagueFixtures(leagueId: string, season: number, kind: FixtureKind): Promise<Match[] | null> {
-  const all = await cached(`fixtures:${leagueId}:${season}`, FIVE_MIN, () => delay(mockFixtures(leagueId, season)))
+  const all = await loadFixtures(leagueId, season)
   if (!all) return null
   // Maç sayfası bu maçları açabilsin diye kaydet
   registerMatches(all)
   return kind === 'results'
     ? all.filter((m) => m.status === 'finished').sort((a, b) => b.startTime.localeCompare(a.startTime))
     : all.filter((m) => m.status !== 'finished').sort((a, b) => a.startTime.localeCompare(b.startTime))
+}
+
+// ---------- Lig maçından maç sayfasına ----------
+// football-data / ESPN maçlarının id'si API-Football'unkinden farklı ("fd-123", "espn-456").
+// Maç sayfası API-Football'dan açıldığı için o günün listesinde aynı ligde aynı takımların maçı aranır.
+const nameTokens = (name: string) =>
+  teamIdOf(name)
+    .split('-')
+    .filter((t) => t.length > 2 && !['fc', 'afc', 'cf', 'club', 'calcio', 'sport', 'united', 'city'].includes(t))
+
+const sameTeam = (a: string, b: string) => {
+  const ta = nameTokens(a)
+  const tb = nameTokens(b)
+  return ta.some((t) => tb.includes(t)) || teamIdOf(a) === teamIdOf(b)
+}
+
+export async function resolveLeagueMatch(match: Match): Promise<string | null> {
+  if (!/^(fd|espn)-/.test(match.id)) return match.id
+  const day = await fetchMatches('football', new Date(match.startTime))
+  const leagueId = apiLeagueId(match.leagueId)
+  const found = day.find((m) => m.leagueId === leagueId && sameTeam(m.homeTeam, match.homeTeam) && sameTeam(m.awayTeam, match.awayTeam))
+  return found?.id ?? null
 }
 
 // ---------- Bugün oynayan takımlar ----------

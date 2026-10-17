@@ -46,6 +46,8 @@ export interface LeagueStandings {
   leagueId: string
   season: number
   groups: StandingGroup[]
+  /** false: kaynak ev/deplasman ayrımı vermiyor (sekmeler gizlenir). Belirtilmemişse var sayılır. */
+  hasSplits?: boolean
 }
 
 export type StandingsView = 'all' | 'home' | 'away'

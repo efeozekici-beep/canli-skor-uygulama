@@ -53,6 +53,7 @@ export interface TeamLineup {
   team: TeamRef
   formation: string
   coach: string
+  coachPhoto?: string
   startXI: LineupPlayer[]
   substitutes: LineupPlayer[]
 }

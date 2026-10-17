@@ -3,7 +3,7 @@
   "regions": ["fra1"],
   "rewrites": [
     {
-      "source": "/api/:provider(football|basketball|nba)/:path*",
+      "source": "/api/:provider(football|basketball|nba|footballdata|espn)/:path*",
       "destination": "/api/proxy?provider=:provider&path=:path*"
     }
   ]

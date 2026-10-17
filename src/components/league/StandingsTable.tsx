@@ -116,21 +116,24 @@ export default function StandingsTable({ leagueId, season }: Props) {
     if (row.description && !zones.has(row.description)) zones.set(row.description, zoneColor(row.description, zones.size))
   }
   const playingToday = teamsPlayingToday(leagueId)
+  // Kaynak ev/deplasman ayrımı vermiyorsa sadece genel tablo
+  const hasSplits = standings.data?.hasSplits !== false
+  const activeView = hasSplits ? view : 'all'
 
   return (
     <div className="space-y-4 p-3 sm:p-5">
-      <LeagueTabs tabs={VIEWS} active={view} onChange={setView} label="Tablo türü" variant="pill" />
+      {hasSplits && <LeagueTabs tabs={VIEWS} active={view} onChange={setView} label="Tablo türü" variant="pill" />}
 
       {groups.map((group) => (
         <section key={group.name}>
           {/* Birden fazla grup varsa her tablonun başlığı (Grup A, Grup B...) */}
           {groups.length > 1 && <h3 className="mb-2 px-1 text-sm font-semibold text-white/80">{group.name}</h3>}
-          <GroupTable rows={group.rows} view={view} zones={zones} playingToday={playingToday} />
+          <GroupTable rows={group.rows} view={activeView} zones={zones} playingToday={playingToday} />
         </section>
       ))}
 
       {/* Renk açıklaması */}
-      {view === 'all' && zones.size > 0 && (
+      {activeView === 'all' && zones.size > 0 && (
         <ul className="flex flex-wrap gap-x-5 gap-y-2 border-t border-white/10 px-1 pt-4 text-xs text-white/60">
           {[...zones].map(([description, color]) => (
             <li key={description} className="flex items-center gap-2">

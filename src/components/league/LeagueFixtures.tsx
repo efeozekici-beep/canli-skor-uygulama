@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Match } from '../../types/match'
 import type { FixtureKind } from '../../types/league'
-import { getLeagueFixtures } from '../../services/leagueService'
+import { getLeagueFixtures, resolveLeagueMatch } from '../../services/leagueService'
 import { useDetailData } from '../../hooks/useDetailData'
 import { useFavorites } from '../../hooks/useFavorites'
 import MatchRow from '../MatchRow'
@@ -36,6 +36,17 @@ export default function LeagueFixtures({ leagueId, season, onSelectMatch }: Prop
   const [kind, setKind] = useState<FixtureKind>('results')
   const data = useDetailData(`${kind}:${leagueId}:${season}`, () => getLeagueFixtures(leagueId, season, kind))
   const { favorites, toggleFavorite } = useFavorites()
+  // Başka kaynaktan gelen maçın API-Football karşılığı bulunamazsa satırın altında kısa not
+  const [unresolved, setUnresolved] = useState<string | null>(null)
+
+  const openMatch = async (id: string) => {
+    const match = data.data?.find((m) => m.id === id)
+    if (!match) return
+    setUnresolved(null)
+    const realId = await resolveLeagueMatch(match).catch(() => null)
+    if (realId) onSelectMatch(realId)
+    else setUnresolved(id)
+  }
 
   return (
     <div className="space-y-4 p-3 sm:p-5">
@@ -52,14 +63,10 @@ export default function LeagueFixtures({ leagueId, season, onSelectMatch }: Prop
             <section key={group.day}>
               <h3 className="bg-black/25 px-4 py-2 text-xs font-semibold text-white/60 capitalize">{group.day}</h3>
               {group.matches.map((m) => (
-                <MatchRow
-                  key={m.id}
-                  match={m}
-                  isFavorite={favorites.has(m.id)}
-                  isSelected={false}
-                  onToggleFavorite={toggleFavorite}
-                  onSelect={onSelectMatch}
-                />
+                <div key={m.id}>
+                  <MatchRow match={m} isFavorite={favorites.has(m.id)} isSelected={false} onToggleFavorite={toggleFavorite} onSelect={openMatch} />
+                  {unresolved === m.id && <p className="px-4 pb-2 text-xs text-white/50">Bu maçın detay sayfası şu an açılamıyor.</p>}
+                </div>
               ))}
             </section>
           ))}

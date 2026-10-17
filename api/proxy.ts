@@ -1,17 +1,29 @@
 // CanlıSkor backend'i (Vercel fonksiyonu).
-// Tarayıcı /api/football/..., /api/basketball/..., /api/nba/... ister; burası isteği API anahtarıyla
-// API-Sports'a iletir ve cevabı Redis'te (Upstash) saklar. Böylece:
+// Tarayıcı /api/football/..., /api/basketball/..., /api/nba/... (API-Sports), /api/footballdata/... (football-data.org)
+// ve /api/espn/... (ESPN) ister; burası isteği gerekiyorsa anahtarla iletir ve cevabı Redis'te (Upstash) saklar. Böylece:
 //  - anahtar tarayıcıya hiç gitmez,
 //  - aynı veriyi isteyen bütün kullanıcılar tek istek (tek kota) harcar.
 // Yerelde (npm run dev) aynı kod vite.config.ts içinden çalışır; Redis yoksa hafızada saklar.
 
-type Env = Record<string, string | undefined>
+import { cacheGet, cacheSet, type Env } from './_lib/cache.js'
+
+interface ProviderConfig {
+  host: string
+  /** Anahtarın ortam değişkeni ve gönderildiği başlık (ESPN anahtar istemiyor) */
+  key: { env: string; header: string } | null
+  /** API-Sports hataları HTTP 200 içinde "errors" alanıyla gelir; diğerleri normal HTTP durum kodu kullanır */
+  apiSports: boolean
+}
 
 const PROVIDERS = {
-  football: { host: 'https://v3.football.api-sports.io', keyName: 'API_FOOTBALL_KEY' },
-  basketball: { host: 'https://v1.basketball.api-sports.io', keyName: 'API_BASKETBALL_KEY' },
-  nba: { host: 'https://v2.nba.api-sports.io', keyName: 'API_NBA_KEY' },
-} as const
+  football: { host: 'https://v3.football.api-sports.io', key: { env: 'API_FOOTBALL_KEY', header: 'x-apisports-key' }, apiSports: true },
+  basketball: { host: 'https://v1.basketball.api-sports.io', key: { env: 'API_BASKETBALL_KEY', header: 'x-apisports-key' }, apiSports: true },
+  nba: { host: 'https://v2.nba.api-sports.io', key: { env: 'API_NBA_KEY', header: 'x-apisports-key' }, apiSports: true },
+  // Büyük 12 lig: bu sezonun puan durumu, gol krallığı, fikstür (dakikada 10 istek)
+  footballdata: { host: 'https://api.football-data.org/v4', key: { env: 'FOOTBALL_DATA_KEY', header: 'X-Auth-Token' }, apiSports: false },
+  // Diğer ligler (Süper Lig...): puan durumu, krallık, günlük maçlar
+  espn: { host: 'https://site.api.espn.com', key: null, apiSports: false },
+} satisfies Record<string, ProviderConfig>
 type Provider = keyof typeof PROVIDERS
 
 const MIN = 60
@@ -54,10 +66,41 @@ function footballFixturesTtl(q: URLSearchParams, body: unknown) {
   return 5 * MIN // lig fikstürü
 }
 
+// ESPN günlük maç listesi (?dates=20261017): geçmiş günler 6 saat, bugün 2 dk, gelecek 1 saat
+function espnDateTtl(q: URLSearchParams) {
+  const date = q.get('dates') ?? ''
+  const today = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+  if (date === today) return 2 * MIN
+  return date < today ? 6 * HOUR : HOUR
+}
+
 type Rule = (q: URLSearchParams, body: unknown) => number
 const fixed = (seconds: number): Rule => () => seconds
 
 // Sadece burada listelenen uç noktalara izin verilir: backend herkesin kullanabileceği açık bir proxy olmasın
+// Değişken parçalı adresler (lig kodu gibi) için desenler
+const PATTERNS: Record<Provider, [RegExp, Rule][]> = {
+  football: [],
+  basketball: [],
+  nba: [],
+  footballdata: [
+    [/^\/competitions\/[A-Z0-9]{2,4}\/standings$/, fixed(30 * MIN)],
+    [/^\/competitions\/[A-Z0-9]{2,4}\/scorers$/, fixed(3 * HOUR)],
+    [/^\/competitions\/[A-Z0-9]{2,4}\/matches$/, fixed(10 * MIN)],
+  ],
+  espn: [
+    [/^\/apis\/v2\/sports\/soccer\/[a-z0-9.]+\/standings$/, fixed(30 * MIN)],
+    [/^\/apis\/site\/v2\/sports\/soccer\/[a-z0-9.]+\/statistics$/, fixed(3 * HOUR)],
+    [/^\/apis\/site\/v2\/sports\/soccer\/[a-z0-9.]+\/scoreboard$/, espnDateTtl],
+  ],
+}
+
+function findRule(provider: Provider, path: string): Rule | null {
+  const exact = RULES[provider]
+  if (Object.hasOwn(exact, path)) return exact[path]
+  return PATTERNS[provider].find(([re]) => re.test(path))?.[1] ?? null
+}
+
 const RULES: Record<Provider, Record<string, Rule>> = {
   football: {
     '/fixtures': footballFixturesTtl,
@@ -75,6 +118,7 @@ const RULES: Record<Provider, Record<string, Rule>> = {
     '/trophies': fixed(7 * DAY),
     '/teams': fixed(DAY),
     '/leagues': fixed(DAY),
+    '/coachs': fixed(DAY), // takımın teknik direktörü (kadroda boş gelirse)
   },
   basketball: {
     '/games': dateTtl,
@@ -87,6 +131,8 @@ const RULES: Record<Provider, Record<string, Rule>> = {
     '/players/statistics': fixed(2 * MIN),
     '/players': fixed(7 * DAY),
   },
+  footballdata: {},
+  espn: {},
 }
 
 // API-Sports hataları HTTP 200 ile gelir: { errors: { plan: "..." } } gibi
@@ -96,64 +142,6 @@ function errorKind(body: unknown): 'none' | 'plan' | 'other' {
   if (Array.isArray(errors)) return errors.length > 0 ? 'other' : 'none'
   if ('plan' in errors) return 'plan'
   return Object.keys(errors).length > 0 ? 'other' : 'none'
-}
-
-// ---------- Önbellek: Upstash Redis, yoksa hafıza ----------
-
-interface Entry {
-  expiresAt: number
-  body: string
-}
-
-const memory = new Map<string, Entry>()
-
-// Vercel'in Upstash entegrasyonu KV_* adlarını da kullanabiliyor; ikisi de kabul
-function redisConfig(env: Env) {
-  const url = env.UPSTASH_REDIS_REST_URL ?? env.KV_REST_API_URL
-  const token = env.UPSTASH_REDIS_REST_TOKEN ?? env.KV_REST_API_TOKEN
-  return url && token ? { url, token } : null
-}
-
-async function redis(cfg: { url: string; token: string }, command: (string | number)[]) {
-  const res = await fetch(cfg.url, {
-    method: 'POST',
-    headers: { Authorization: `Bearer ${cfg.token}` },
-    body: JSON.stringify(command),
-    signal: AbortSignal.timeout(3000),
-  })
-  if (!res.ok) throw new Error(`Redis HTTP ${res.status}`)
-  return ((await res.json()) as { result: unknown }).result
-}
-
-async function cacheGet(env: Env, key: string): Promise<Entry | null> {
-  const cfg = redisConfig(env)
-  if (!cfg) {
-    const hit = memory.get(key)
-    return hit && hit.expiresAt > Date.now() ? hit : null
-  }
-  try {
-    const raw = await redis(cfg, ['GET', key])
-    return typeof raw === 'string' ? (JSON.parse(raw) as Entry) : null
-  } catch (err) {
-    // Redis çökerse site durmasın: doğrudan API'den devam
-    console.error('Redis okunamadı:', err)
-    return null
-  }
-}
-
-async function cacheSet(env: Env, key: string, entry: Entry, ttl: number) {
-  const cfg = redisConfig(env)
-  if (!cfg) {
-    // Hafıza şişmesin: arada süresi dolanları temizle
-    if (memory.size > 500) for (const [k, v] of memory) if (v.expiresAt <= Date.now()) memory.delete(k)
-    memory.set(key, entry)
-    return
-  }
-  try {
-    await redis(cfg, ['SET', key, JSON.stringify(entry), 'EX', ttl])
-  } catch (err) {
-    console.error('Redis yazılamadı:', err)
-  }
 }
 
 // ---------- İstek ----------
@@ -181,7 +169,7 @@ function parseTarget(url: URL) {
   let path = query.get('path')
   query.delete('provider')
   query.delete('path')
-  const m = url.pathname.match(/^\/api\/(football|basketball|nba)(\/.*)$/)
+  const m = url.pathname.match(/^\/api\/(football|basketball|nba|footballdata|espn)(\/.*)$/)
   if (m) {
     provider = m[1]
     path = m[2]
@@ -197,27 +185,34 @@ type Result = { ok: true; body: string; ttl: number } | { ok: false; status: num
 // Aynı anda gelen aynı istekler tek API çağrısını paylaşır
 const inflight = new Map<string, Promise<Result>>()
 
-async function fetchUpstream(env: Env, provider: Provider, path: string, query: URLSearchParams, cacheKey: string): Promise<Result> {
-  const { host, keyName } = PROVIDERS[provider]
-  const apiKey = env[keyName]
-  if (!apiKey) return { ok: false, status: 500, message: `${keyName} tanımlı değil.` }
+async function fetchUpstream(env: Env, provider: Provider, path: string, rule: Rule, query: URLSearchParams, cacheKey: string): Promise<Result> {
+  const config: ProviderConfig = PROVIDERS[provider]
+  const headers: Record<string, string> = {}
+  if (config.key) {
+    const apiKey = env[config.key.env]
+    if (!apiKey) return { ok: false, status: 500, message: `${config.key.env} tanımlı değil.` }
+    headers[config.key.header] = apiKey
+  }
   const qs = query.toString()
   try {
-    const res = await fetch(`${host}${path}${qs ? `?${qs}` : ''}`, {
-      headers: { 'x-apisports-key': apiKey },
-      signal: AbortSignal.timeout(10_000),
-    })
-    if (!res.ok) return { ok: false, status: 502, message: `API-Sports HTTP ${res.status}` }
+    const res = await fetch(`${config.host}${path}${qs ? `?${qs}` : ''}`, { headers, signal: AbortSignal.timeout(10_000) })
+    if (!res.ok) {
+      // football-data: 403 = ücretsiz plan bu sezonu/ligi vermiyor, 404 = yok. Kalıcı olduğu için 1 saat saklanır
+      // (dakikada 10 istek sınırı boşa harcanmasın). 429 (çok istek) ve sunucu hataları saklanmaz.
+      const permanent = res.status === 403 || res.status === 404
+      if (permanent) await cacheSet(env, `${cacheKey}:error`, String(res.status), HOUR)
+      return { ok: false, status: permanent ? res.status : 502, message: `${provider} HTTP ${res.status}` }
+    }
     const body = await res.text()
     const parsed: unknown = JSON.parse(body)
-    // Plan hatası kalıcıdır (6 saat sakla, kota harcanmasın); kota/anahtar hatası saklanmaz
-    const kind = errorKind(parsed)
-    const ttl = kind === 'none' ? RULES[provider][path](query, parsed) : kind === 'plan' ? 6 * HOUR : 0
-    if (ttl > 0) await cacheSet(env, cacheKey, { expiresAt: Date.now() + ttl * 1000, body }, ttl)
+    // API-Sports plan hatası kalıcıdır (6 saat sakla, kota harcanmasın); kota/anahtar hatası saklanmaz
+    const kind = config.apiSports ? errorKind(parsed) : 'none'
+    const ttl = kind === 'none' ? rule(query, parsed) : kind === 'plan' ? 6 * HOUR : 0
+    if (ttl > 0) await cacheSet(env, cacheKey, body, ttl)
     return { ok: true, body, ttl }
   } catch (err) {
-    console.error('API-Sports isteği başarısız:', err)
-    return { ok: false, status: 502, message: 'API-Sports şu an yanıt vermiyor.' }
+    console.error(`${provider} isteği başarısız:`, err)
+    return { ok: false, status: 502, message: `${provider} şu an yanıt vermiyor.` }
   }
 }
 
@@ -226,7 +221,8 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
   const target = parseTarget(new URL(request.url))
   if (!target) return json(404, 'Bilinmeyen kaynak.')
   const { provider, path, query } = target
-  if (!Object.hasOwn(RULES[provider], path)) return json(404, 'Bu uç noktaya izin verilmiyor.')
+  const rule = findRule(provider, path)
+  if (!rule) return json(404, 'Bu uç noktaya izin verilmiyor.')
 
   query.sort() // ?a=1&b=2 ile ?b=2&a=1 aynı önbelleği kullansın
   if (query.toString().length > 300) return json(400, 'Sorgu çok uzun.')
@@ -234,10 +230,12 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
 
   const hit = await cacheGet(env, cacheKey)
   if (hit) return send(hit.body, Math.max(1, Math.ceil((hit.expiresAt - Date.now()) / 1000)), 'HIT')
+  const storedError = provider === 'footballdata' ? await cacheGet(env, `${cacheKey}:error`) : null
+  if (storedError) return json(Number(storedError.body), `${provider} HTTP ${storedError.body}`)
 
   let pending = inflight.get(cacheKey)
   if (!pending) {
-    pending = fetchUpstream(env, provider, path, query, cacheKey).finally(() => inflight.delete(cacheKey))
+    pending = fetchUpstream(env, provider, path, rule, query, cacheKey).finally(() => inflight.delete(cacheKey))
     inflight.set(cacheKey, pending)
   }
   const result = await pending

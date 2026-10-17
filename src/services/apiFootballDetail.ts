@@ -20,7 +20,7 @@ interface ApiLineupPlayer {
 
 interface ApiLineup {
   team: { id: number; name: string; logo: string }
-  coach: { name: string | null }
+  coach: { id: number | null; name: string | null; photo: string | null }
   formation: string | null
   startXI: ApiLineupPlayer[]
   substitutes: ApiLineupPlayer[]
@@ -122,6 +122,12 @@ function mapEvents(d: ApiFixtureDetail): MatchEvent[] {
 }
 
 // ---------- Kadrolar ----------
+// API-Football fotoğraf adresi oyuncu numarasından üretilebiliyor: kadroda fotoğraf alanı olmadığı için
+// maça girmeyen yedeklerin fotoğrafı da böylece gelir (ek istek yok)
+const playerPhoto = (id: number) => `https://media.api-sports.io/football/players/${id}.png`
+// Teknik direktörde de aynısı: isim gelip fotoğraf boş gelirse numaradan üret
+const coachPhoto = (id: number | null) => (id ? `https://media.api-sports.io/football/coachs/${id}.png` : undefined)
+
 function mapLineups(d: ApiFixtureDetail, photos: Map<string, string>): Lineups | null {
   const toPlayer = ({ player }: ApiLineupPlayer): LineupPlayer => ({
     id: String(player.id),
@@ -129,7 +135,7 @@ function mapLineups(d: ApiFixtureDetail, photos: Map<string, string>): Lineups |
     number: player.number,
     position: (['G', 'D', 'M', 'F'].includes(player.pos ?? '') ? player.pos : 'M') as PlayerPosition,
     grid: player.grid,
-    photo: photos.get(String(player.id)),
+    photo: photos.get(String(player.id)) ?? playerPhoto(player.id),
   })
   const toTeam = (teamId: number): TeamLineup | null => {
     const l = d.lineups.find((x) => x.team.id === teamId)
@@ -138,6 +144,7 @@ function mapLineups(d: ApiFixtureDetail, photos: Map<string, string>): Lineups |
       team: { id: String(l.team.id), name: l.team.name, logo: l.team.logo },
       formation: l.formation ?? '',
       coach: l.coach.name ?? '—',
+      coachPhoto: l.coach.photo ?? coachPhoto(l.coach.id),
       startXI: l.startXI.map(toPlayer),
       substitutes: l.substitutes.map(toPlayer),
     }
@@ -244,6 +251,23 @@ interface ApiStandingRow {
 }
 
 // Puan durumu (ücretsiz planda bu sezon kapalı; ücretli planda çalışır)
+// ---------- Teknik direktör ----------
+interface ApiCoach {
+  name: string
+  photo: string | null
+  career: { team: { id: number }; start: string | null; end: string | null }[]
+}
+
+// Kadroda teknik direktör boş gelirse (canlı maçlarda olabiliyor) takımın şu anki hocası.
+// Görevi bitmemiş (end: null) olanlardan en son başlayanı seçer; eski geçici hocalar elenir.
+export async function fetchCurrentCoach(teamId: string): Promise<{ name: string; photo?: string } | null> {
+  const coaches = await apiGet<ApiCoach[]>(`/coachs?team=${encodeURIComponent(teamId)}`)
+  const current = coaches
+    .flatMap((c) => c.career.filter((j) => String(j.team.id) === teamId && j.end === null).map((j) => ({ c, start: j.start ?? '' })))
+    .sort((a, b) => b.start.localeCompare(a.start))[0]
+  return current ? { name: current.c.name, photo: current.c.photo ?? undefined } : null
+}
+
 export async function fetchStandings(leagueId: string, season: number, teamIds: string[]): Promise<Standings | null> {
   const [entry] = await apiGet<{ league: { id: number; name: string; standings: ApiStandingRow[][] } }[]>(
     `/standings?league=${leagueId}&season=${season}`,

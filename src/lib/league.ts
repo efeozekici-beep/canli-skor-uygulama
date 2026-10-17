@@ -27,6 +27,20 @@ export function denseRanks(values: number[]) {
 export function translateZone(description: string) {
   return description
     .replace(/Promotion - /gi, '')
+    // ESPN biçimi: "Champions League qualifying", "Qualifies for round of 16", "Knockout phase playoffs - seeded"
+    .replace(/Qualifies for round of 16/gi, 'Son 16')
+    .replace(/Knockout phase playoffs - seeded/gi, 'Eleme play-off (seri başı)')
+    .replace(/Knockout phase playoffs - unseeded/gi, 'Eleme play-off')
+    .replace(/Champions League/gi, 'Şampiyonlar Ligi')
+    .replace(/Europa League/gi, 'Avrupa Ligi')
+    .replace(/Conference League/gi, 'Konferans Ligi')
+    .replace(/Championship playoffs/gi, 'Şampiyonluk play-off')
+    .replace(/European playoffs/gi, 'Avrupa play-off')
+    .replace(/Relegation playoffs?/gi, 'Düşme play-off')
+    .replace(/Promotion playoffs?/gi, 'Yükselme play-off')
+    .replace(/^Promotion$/gi, 'Yükselme')
+    .replace(/Relegated/gi, 'Düşme')
+    .replace(/ qualifying/gi, ' (ön eleme)')
     .replace(/Relegation/gi, 'Düşme')
     .replace(/Qualification/gi, 'Ön eleme')
     .replace(/Play Offs?|Play-offs?|Playoffs?/gi, 'Play-off')

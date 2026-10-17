@@ -22,6 +22,15 @@ export async function providerGet<T>(label: string, baseUrl: string, path: strin
   return body.response
 }
 
+// API-Sports dışındaki kaynaklar (ESPN, football-data.org) normal HTTP durum kodu kullanır.
+// 403/404 = bu lig/sezon için veri yok (hata değil) → null
+export async function fetchJson<T>(label: string, url: string): Promise<T | null> {
+  const res = await fetch(url)
+  if (res.status === 403 || res.status === 404) return null
+  if (!res.ok) throw new Error(`${label} isteği başarısız (HTTP ${res.status}).`)
+  return (await res.json()) as T
+}
+
 // Kaynağa özel önbellek: hafıza + sessionStorage. Her kaynak kendi önekini ve sürelerini kullanır,
 // böylece bir kaynağın önbelleği diğerini etkilemez.
 export function createCache(prefix: string) {

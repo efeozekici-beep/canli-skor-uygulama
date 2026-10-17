@@ -5,6 +5,7 @@ import { getLineups, getPlayerStats } from '../../services/matchDetailService'
 import { useDetailData } from '../../hooks/useDetailData'
 import { ratingTone, teamAverageRating } from '../../lib/ratings'
 import TeamLogo from '../TeamLogo'
+import PlayerAvatar from '../common/PlayerAvatar'
 import PitchView from './PitchView'
 import PlayerPopover from './PlayerPopover'
 import RatingBadge from './RatingBadge'
@@ -95,6 +96,7 @@ export default function LineupsTab({ match, highlightedPlayerId }: Props) {
                   className={`flex w-full items-center gap-3 px-3 py-2 text-left hover:bg-white/[0.04] ${isHighlighted ? 'bg-amber-400/10' : ''}`}
                 >
                   <span className="w-6 text-center text-sm font-bold text-white/60 tabular-nums">{p.number}</span>
+                  <PlayerAvatar photo={p.photo} name={p.name} size="base" />
                   <span className="min-w-0 flex-1">
                     <span className={`block truncate text-sm ${isHighlighted ? 'text-amber-300' : ''}`}>{p.name}</span>
                     <span className="flex items-center gap-2 text-xs text-white/45">
@@ -110,9 +112,13 @@ export default function LineupsTab({ match, highlightedPlayerId }: Props) {
         </ul>
       </section>
 
-      <p className="text-sm text-white/60">
-        Teknik direktör: <span className="font-semibold text-white">{lineup.coach}</span>
-      </p>
+      <div className="flex items-center gap-3 rounded-xl bg-white/[0.03] px-3 py-2">
+        <PlayerAvatar photo={lineup.coachPhoto} name={lineup.coach} size="base" />
+        <p className="min-w-0 text-sm">
+          <span className="block text-xs text-white/50">Teknik direktör</span>
+          <span className="block truncate font-semibold">{lineup.coach}</span>
+        </p>
+      </div>
 
       {popover && (
         <PlayerPopover

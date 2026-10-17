@@ -3,14 +3,16 @@ import { defineConfig, loadEnv, type Connect, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
 import { handleApiRequest } from './api/proxy.ts'
+import { handlePhotosRequest } from './api/photos.ts'
 
-// Yerelde /api/* isteklerini canlıdaki backend koduyla (api/proxy.ts) karşılar:
+// Yerelde /api/* isteklerini canlıdaki backend koduyla (api/proxy.ts, api/photos.ts) karşılar:
 // anahtar ekleme, izinli uç noktalar ve önbellek yerelde de aynı çalışır.
 function localApi(env: Record<string, string>): Plugin {
   const middleware: Connect.NextHandleFunction = (req, res, next) => {
     if (!req.url?.startsWith('/api/')) return next()
     const request = new Request(new URL(req.url, 'http://localhost'), { method: req.method })
-    handleApiRequest(request, env)
+    const handler = req.url.startsWith('/api/photos') ? handlePhotosRequest : handleApiRequest
+    handler(request, env)
       .then(async (response) => {
         res.statusCode = response.status
         response.headers.forEach((value, key) => res.setHeader(key, value))

@@ -1,12 +1,13 @@
-import type { FormH2H, Lineups, MatchDetail, MatchEvent, StatItem, Standings } from '../types/matchDetail'
+import type { FormH2H, Lineups, MatchDetail, TeamLineup, MatchEvent, StatItem, Standings } from '../types/matchDetail'
 import type { PlayerMatchStats } from '../types/playerStats'
 import { MOCK_DETAILS } from '../data/mockMatchDetails'
 import { MOCK_STANDINGS, mockHeadToHead, mockLastMatches } from '../data/mockStandings'
 import { MOCK_MATCHES } from '../data/mockMatches'
 import { findMatchById } from './matchService'
-import { fetchFixtureBundle, fetchHeadToHead, fetchStandings, type FixtureBundle } from './apiFootballDetail'
+import { fetchCurrentCoach, fetchFixtureBundle, fetchHeadToHead, fetchStandings, type FixtureBundle } from './apiFootballDetail'
 import { matchTeamIds } from '../lib/team'
 import { readStore, writeStore } from '../lib/storageCache'
+import { getPlayerPhotos } from './photoService'
 
 // Maç detayının tek veri kapısı. Bileşenler sadece bu fonksiyonları çağırır.
 //  - Mock maçlar (ucl-1, tsl-2...) ve VITE_USE_MOCK=true iken: src/data altındaki örnek veri
@@ -41,7 +42,7 @@ const delay = <T>(value: T, ms = 300) => new Promise<T>((resolve) => setTimeout(
 // ---------- API: tek maç paketi ----------
 // Biten maç değişmez (6 saat sakla), canlı maç 1 dakikada bir, başlamamış maç 10 dakikada bir yenilenir.
 // Dönüştürme mantığı değişirse sürümü artır, eski kayıtlar kullanılmaz.
-const bundleKey = (id: string) => `canliskor:fixture:v3:${id}`
+const bundleKey = (id: string) => `canliskor:fixture:v5:${id}`
 const bundleTtl = (b: FixtureBundle) => (b.match.status === 'finished' ? 6 * 60 * 60_000 : b.match.status === 'live' ? 60_000 : 10 * 60_000)
 
 function peekBundle(id: string): FixtureBundle | null {
@@ -81,8 +82,37 @@ export function getEvents(id: string): Promise<MatchEvent[] | null> {
   return cached(`events:${id}`, SHORT, () => delay(MOCK_DETAILS[id]?.events ?? null))
 }
 
+// Takımın teknik direktörü: 1 gün saklanır (tarayıcıda localStorage, sunucuda Redis)
+function getCurrentCoach(teamId: string) {
+  const key = `canliskor:coach:v1:${teamId}`
+  return cached(`coach:${teamId}`, LONG, async () => {
+    const stored = readStore<{ name: string; photo?: string } | false>(key, 24 * 60 * 60_000, 'local')
+    if (stored !== null) return stored || null
+    const coach = await fetchCurrentCoach(teamId)
+    writeStore(key, coach ?? false, 'local')
+    return coach
+  })
+}
+
+// Kadroda teknik direktör yoksa ayrı sorguyla doldur; o da olmazsa "—" kalır
+async function withCoach(lineup: TeamLineup): Promise<TeamLineup> {
+  if (lineup.coach !== '—') return lineup
+  const coach = await getCurrentCoach(lineup.team.id).catch(() => null)
+  return coach ? { ...lineup, coach: coach.name, coachPhoto: coach.photo } : lineup
+}
+
 export function getLineups(id: string): Promise<Lineups | null> {
-  if (isApiMatch(id)) return getBundle(id).then((b) => b?.lineups ?? null)
+  if (isApiMatch(id)) {
+    return getBundle(id).then(async (b) => {
+      if (!b?.lineups) return null
+      const [home, away] = await Promise.all([withCoach(b.lineups.home), withCoach(b.lineups.away)])
+      // API-Football hoca fotoğrafı çoğu zaman "fotoğraf yok" resmi: önce Wikipedia'daki gerçek fotoğrafa bak
+      const coaches = [home.coach, away.coach].filter((c) => c !== '—')
+      const photos = await getPlayerPhotos('football-coach', coaches).catch(() => ({}) as Record<string, string | null>)
+      const withPhoto = (l: TeamLineup) => ({ ...l, coachPhoto: photos[l.coach] ?? l.coachPhoto })
+      return { home: withPhoto(home), away: withPhoto(away) }
+    })
+  }
   return cached(`lineups:${id}`, SHORT, () => delay(MOCK_DETAILS[id]?.lineups ?? null))
 }
 
