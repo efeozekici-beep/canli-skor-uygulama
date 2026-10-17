@@ -5,6 +5,7 @@ import { PROVIDERS } from '../../config/providers'
 import { mockBasketballGames, mockBasketballStandings } from '../../data/mockBasketball'
 import { isSameDay } from '../../lib/date'
 import { createCache, mockDelay, providerGet, ymd } from './common'
+import { COUNTRY_TR, compareLeagues } from '../../lib/leagueOrder'
 
 // API-Basketball adaptörü: basketbol sekmesindeki bütün ligler (NBA dahil), maç listesi, canlı skor, puan durumu.
 // Bileşenler bu dosyayı bilmez; basketballService üzerinden kendi tiplerimizi (Match, BasketballStandings) alır.
@@ -48,9 +49,8 @@ export interface ApiBasketballStanding {
 // ---------- Dönüştürücüler (mapper) ----------
 const LIVE = new Set(['Q1', 'Q2', 'Q3', 'Q4', 'OT', 'BT', 'HT'])
 const FINISHED = new Set(['FT', 'AOT', 'CANC', 'ABD', 'AWD'])
-const FEATURED = ['12', '120'] // NBA, EuroLeague: listede üstte ve açık
+const FEATURED = ['104', '12', '120'] // BSL (TBF), NBA, EuroLeague: listede açık gelir (sıra: src/lib/leagueOrder.ts)
 
-const REGIONS: Record<string, string> = { USA: 'ABD', Europe: 'Avrupa', World: 'Dünya', Turkey: 'Türkiye', Spain: 'İspanya', Greece: 'Yunanistan' }
 
 function toStatus(short: string): MatchStatus {
   if (LIVE.has(short)) return 'live'
@@ -96,7 +96,7 @@ export function mapGame(g: ApiBasketballGame): Match {
     leagueId: `bb-${g.league.id}`,
     leagueName: g.league.name,
     leagueLogo: g.league.logo || undefined,
-    region: REGIONS[g.country.name] ?? g.country.name,
+    region: COUNTRY_TR[g.country.name] ?? g.country.name,
     featured: FEATURED.includes(String(g.league.id)),
     homeTeam: g.teams.home.name,
     awayTeam: g.teams.away.name,
@@ -267,7 +267,8 @@ export function getGames(date: Date): Promise<Match[]> {
     const raw = config.useMock
       ? await mockDelay(mockBasketballGames().filter((g) => isSameDay(new Date(g.date), date)))
       : await providerGet<ApiBasketballGame[]>(config.label, config.baseUrl, `/games?date=${ymd(date)}&timezone=${encodeURIComponent(timezone())}`)
-    return raw.map(mapGame)
+    // Ligler güç sırasına göre (Türkiye, NBA, EuroLeague...), lig içinde başlama saatine göre
+    return raw.map(mapGame).sort((a, b) => compareLeagues(a, b) || a.startTime.localeCompare(b.startTime))
   })
 }
 

@@ -8,6 +8,7 @@ import StatusFilters from './StatusFilters'
 import LeagueGroup from './LeagueGroup'
 import MatchRow from './MatchRow'
 import LeagueLogo from './common/LeagueLogo'
+import { compareLeagues } from '../lib/leagueOrder'
 
 interface Props {
   sport: string
@@ -31,10 +32,11 @@ function byKickoff(a: Match, b: Match) {
   return a.startTime.localeCompare(b.startTime) || a.id.localeCompare(b.id)
 }
 
-// Groups in order of first appearance, matches sorted by kick-off.
+// Ligler güç sırasına göre (Süper Lig en üstte, src/lib/leagueOrder.ts), lig içinde maçlar başlama saatine göre.
+// Sıralama burada da yapılır: tarayıcıda saklanmış eski sıralı listeler de doğru görünsün.
 function groupByLeague(matches: Match[]): League[] {
   const groups = new Map<string, League>()
-  for (const m of matches) {
+  for (const m of [...matches].sort(compareLeagues)) {
     let group = groups.get(m.leagueId)
     if (!group) {
       group = { id: m.leagueId, name: m.leagueName, region: m.region, logo: m.leagueLogo, featured: m.featured ?? false, matches: [] }

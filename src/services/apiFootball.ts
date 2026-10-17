@@ -1,4 +1,5 @@
 import type { Match, MatchStatus } from '../types/match'
+import { COUNTRY_TR, compareLeagues } from '../lib/leagueOrder'
 
 // Shape of the parts of an API-Football /fixtures item we use.
 export interface ApiFixture {
@@ -56,23 +57,9 @@ const STATUS_LABELS: Record<string, string> = {
   WO: 'HÜK',
 }
 
-// Listed first and expanded by default, in this order.
+// Listede varsayılan olarak açık gelen ligler (sırayı src/lib/leagueOrder.ts belirler)
 const FEATURED_LEAGUES = [2, 3, 848, 203, 206, 204, 39, 140, 135, 78, 61, 1, 4, 5, 10]
 
-const REGIONS: Record<string, string> = {
-  World: 'Dünya',
-  Turkey: 'Türkiye',
-  England: 'İngiltere',
-  Spain: 'İspanya',
-  Italy: 'İtalya',
-  Germany: 'Almanya',
-  France: 'Fransa',
-  Netherlands: 'Hollanda',
-  Portugal: 'Portekiz',
-  Brazil: 'Brezilya',
-  Argentina: 'Arjantin',
-  USA: 'ABD',
-}
 
 function toStatus(short: string): MatchStatus {
   if (LIVE.has(short)) return 'live'
@@ -93,7 +80,7 @@ export function toMatch(item: ApiFixture): Match {
     leagueId: String(league.id),
     leagueName: league.name,
     leagueLogo: league.logo,
-    region: league.name.startsWith('UEFA') ? 'Avrupa' : (REGIONS[league.country] ?? league.country),
+    region: league.name.startsWith('UEFA') ? 'Avrupa' : (COUNTRY_TR[league.country] ?? league.country),
     featured: FEATURED_LEAGUES.includes(league.id),
     homeTeam: teams.home.name,
     awayTeam: teams.away.name,
@@ -111,11 +98,6 @@ export function toMatch(item: ApiFixture): Match {
   }
 }
 
-function leagueRank(m: Match) {
-  const i = FEATURED_LEAGUES.indexOf(Number(m.leagueId))
-  return i === -1 ? FEATURED_LEAGUES.length : i
-}
-
 function ymd(date: Date) {
   const pad = (n: number) => String(n).padStart(2, '0')
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`
@@ -127,11 +109,6 @@ export async function fetchFixtures(date: Date): Promise<Match[]> {
   const fixtures = await apiGet<ApiFixture[]>(`/fixtures?date=${ymd(date)}&timezone=${encodeURIComponent(userTimezone())}`)
   return fixtures
     .map(toMatch)
-    .sort(
-      (a, b) =>
-        leagueRank(a) - leagueRank(b) ||
-        a.region.localeCompare(b.region, 'tr') ||
-        a.leagueName.localeCompare(b.leagueName, 'tr') ||
-        a.startTime.localeCompare(b.startTime),
-    )
+    // Ligler güç sırasına göre (Türkiye en üstte, src/lib/leagueOrder.ts), lig içinde başlama saatine göre
+    .sort((a, b) => compareLeagues(a, b) || a.startTime.localeCompare(b.startTime))
 }

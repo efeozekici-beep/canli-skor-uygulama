@@ -48,9 +48,10 @@
   }
 }
 
-/* ───────────── Futbol sahası çimi arka planı ─────────────
-   Gerçek saha çimi fotoğrafı (public/backgrounds/grass.jpg — Pexels, ücretsiz lisans).
-   Üstünde hafif kenar karartması var ki ortadaki kart öne çıksın.
+/* ───────────── Spora göre arka plan ─────────────
+   Futbol (ve diğerleri): gerçek saha çimi (public/backgrounds/grass.jpg — Pexels, ücretsiz lisans).
+   Basketbol: boş salon ve parke (public/backgrounds/basketball.jpg — WordPress Photo Directory, CC0).
+   Sekme değişince fotoğraflar yumuşakça geçiş yapar (opacity). Üstte hafif kenar karartması var ki kart öne çıksın.
    (Kapsayıcıya overflow:hidden verilseydi yapışkan üst menü bozulurdu; bu yüzden ayrı, fixed katman.) */
 @layer components {
   .cinematic-bg {
@@ -63,14 +64,34 @@
     background-color: #2a8f43;
   }
 
-  /* Fotoğraf katmanı: hafif bulanık, arka planda kalsın.
+  /* Fotoğraf katmanları: hafif bulanık, arka planda kalsın.
      Bulanıklık kenarlarda açık renkli hale yapmasın diye katman ekrandan biraz taşırılır. */
-  .cinematic-bg::before {
-    content: "";
+  .cinematic-bg__photo {
     position: absolute;
     inset: -24px;
-    background: url('/backgrounds/grass.jpg') center / cover;
+    background-position: center;
+    background-size: cover;
     filter: blur(6px);
+  }
+  .cinematic-bg__photo--grass {
+    background-image: url('/backgrounds/grass.jpg');
+  }
+  /* Salon fotoğrafı çimden aydınlık (beyaz duvarlar, lambalar): kart okunur kalsın diye biraz koyulaştırılır */
+  .cinematic-bg__photo--court {
+    background-image: url('/backgrounds/basketball.jpg');
+    background-position: center 70%;
+    filter: blur(6px) brightness(0.62);
+    opacity: 0;
+    transition: opacity 450ms ease;
+  }
+  .cinematic-bg__photo--court.is-active {
+    opacity: 1;
+  }
+  /* İlk kez eklendiğinde de görünmezden başlayıp belirsin */
+  @starting-style {
+    .cinematic-bg__photo--court.is-active {
+      opacity: 0;
+    }
   }
 
   /* Üstte hafif genel karartma + kenar karartması */

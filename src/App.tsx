@@ -66,10 +66,20 @@ function App() {
     window.scrollTo(0, isListPath(path) ? listScroll.current : 0)
   }, [path])
 
+  // Arka plan: basketbolda (ve basketbol maç sayfasında) salon parkesi, diğerlerinde çim.
+  // Parke fotoğrafı ancak basketbola ilk geçilince yüklenir (futbolcu ziyaretçi boşuna indirmesin),
+  // sonra ekranda kalır ki geri dönüşlerde yumuşakça geçiş olsun.
+  const onCourt = sport === 'basketball' || Boolean(matchPageId?.startsWith('bb-'))
+  const [courtSeen, setCourtSeen] = useState(onCourt)
+  if (onCourt && !courtSeen) setCourtSeen(true)
+
   return (
     <div className="relative isolate flex min-h-dvh flex-col">
       {/* Tüm sitenin sabit arka planı (index.css → .cinematic-bg) */}
-      <div aria-hidden="true" className="cinematic-bg" />
+      <div aria-hidden="true" className="cinematic-bg">
+        <span className="cinematic-bg__photo cinematic-bg__photo--grass" />
+        {courtSeen && <span className={`cinematic-bg__photo cinematic-bg__photo--court ${onCourt ? 'is-active' : ''}`} />}
+      </div>
       <Header path={path} sport={sport} onSportChange={handleSportChange} />
 
       {page && (
