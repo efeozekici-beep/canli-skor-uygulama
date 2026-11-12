@@ -1,6 +1,7 @@
 import type { PlayerProfile } from '../../types/player'
 import TeamLogo from '../TeamLogo'
 import PlayerAvatar from '../common/PlayerAvatar'
+import { teamHref } from '../../lib/navigation'
 
 // Ad, takım ve kişisel bilgiler (yaş, uyruk, boy, kilo, doğum tarihi). Sadece bilinenler gösterilir.
 export default function PlayerHeader({ profile }: { profile: PlayerProfile }) {
@@ -22,10 +23,11 @@ export default function PlayerHeader({ profile }: { profile: PlayerProfile }) {
           <h1 className="text-2xl font-bold sm:text-3xl">{profile.name}</h1>
           <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-white/70">
             {profile.team && (
-              <span className="flex items-center gap-1.5">
+              // Örnek veride takım sayfası yok; gerçek oyuncuda takım adından takım sayfası açılır
+              <a href={profile.isMock ? undefined : teamHref({ name: profile.team.name })} className="flex items-center gap-1.5 hover:text-accent">
                 <TeamLogo name={profile.team.name} logo={profile.team.logo} />
                 {profile.team.name}
-              </span>
+              </a>
             )}
             {profile.number !== null && <span className="font-semibold text-white">#{profile.number}</span>}
             {profile.position && <span>{profile.position}</span>}

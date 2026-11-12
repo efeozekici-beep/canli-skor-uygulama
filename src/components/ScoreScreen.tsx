@@ -50,8 +50,8 @@ function groupByLeague(matches: Match[]): League[] {
 
 const countLive = (matches: Match[]) => matches.filter((m) => m.status === 'live').length
 
-// Lig sayfasının adresi: #/lig/2. Lig sayfası şimdilik futbol için; basketbol liglerinde (bb-) bağlantı yok.
-const leagueHref = (leagueId: string) => (leagueId.startsWith('bb-') ? undefined : `#/lig/${encodeURIComponent(leagueId)}`)
+// Lig sayfasının adresi: #/lig/2 (futbol), #/lig/bb-12 (basketbol)
+const leagueHref = (leagueId: string) => `#/lig/${encodeURIComponent(leagueId)}`
 
 function FavoritesIcon() {
   return (

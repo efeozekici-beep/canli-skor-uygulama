@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Match } from '../../types/match'
 import type { NbaPlayerLine } from '../../types/basketball'
-import { getBasketballBoxScore, isNbaMatch } from '../../services/basketballService'
+import { careerSourceFor, getBasketballBoxScore, isNbaMatch } from '../../services/basketballService'
 import { getPlayerPhotos } from '../../services/photoService'
 import { useDetailData } from '../../hooks/useDetailData'
 import TeamLogo from '../TeamLogo'
@@ -121,7 +121,7 @@ export default function BoxScoreTab({ match }: { match: Match }) {
       </p>
 
       {selected && (
-        <NbaPlayerPopover line={selected.line} teamName={selected.teamName} photo={photoOf(selected.line.name)} showProfile={box.profiles === 'nba'} onClose={() => setSelected(null)} />
+        <NbaPlayerPopover line={selected.line} teamName={selected.teamName} photo={photoOf(selected.line.name)} careerSource={careerSourceFor(match, selected.teamName)} showProfile={box.profiles === 'nba'} onClose={() => setSelected(null)} />
       )}
     </div>
   )

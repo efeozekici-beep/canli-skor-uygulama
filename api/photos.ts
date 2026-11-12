@@ -7,6 +7,7 @@
 // Cevap: { photos: { "Luka Doncic": "https://...", "Bilinmeyen Oyuncu": null } }
 
 import { cacheGet, cacheSet, type Env } from './_lib/cache.js'
+import { getJson } from './_lib/http.js'
 
 const DAY = 24 * 60 * 60
 const PREFIX = 'canliskor:photos:v1'
@@ -52,12 +53,6 @@ export function findInIndex(name: string, index: PhotoIndex): string | null {
 }
 
 // ---------- Kaynaklar ----------
-
-async function getJson<T>(url: string, headers?: Record<string, string>): Promise<T> {
-  const res = await fetch(url, { headers, signal: AbortSignal.timeout(8000) })
-  if (!res.ok) throw new Error(`${url} HTTP ${res.status}`)
-  return (await res.json()) as T
-}
 
 interface EspnTeams {
   sports: { leagues: { teams: { team: { id: string } }[] }[] }[]

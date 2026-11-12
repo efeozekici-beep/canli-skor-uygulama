@@ -1,9 +1,12 @@
 import type { Match } from '../../types/match'
-import { getBasketballStandings } from '../../services/basketballService'
+import { getLeagueStandings } from '../../services/basketballService'
 import { useDetailData } from '../../hooks/useDetailData'
 import { zoneColor } from '../../lib/league'
 import TeamLogo from '../TeamLogo'
 import { EmptyState, ErrorState, LoadingState } from '../match-detail/TabStates'
+import { sameTeamName } from '../../lib/team'
+import { basketballTeamHref } from '../../lib/navigation'
+import { hasBasketballTeamPage } from '../../services/basketballTeamService'
 
 // Bölge rengi: play-off yeşil, play-in sarı, diğerleri genel kurala göre
 const colorFor = (description: string, index: number) =>
@@ -11,13 +14,31 @@ const colorFor = (description: string, index: number) =>
 
 // Basketbol puan durumu (API-Basketball): beraberlik yok; G, M, galibiyet yüzdesi, atılan/yenilen sayı
 export default function BasketballStandingsTab({ match }: { match: Match }) {
-  const standings = useDetailData(`bb-standings:${match.leagueId}:${match.basketball?.season ?? ''}`, () => getBasketballStandings(match))
+  if (!match.basketball?.season) return <EmptyState message="Bu lig için puan durumu bulunmuyor." />
+  return (
+    <BasketballStandingsTable
+      leagueId={match.leagueId}
+      season={match.basketball.season}
+      highlightIds={[match.homeTeamId, match.awayTeamId]}
+      highlightNames={[match.homeTeam, match.awayTeam]}
+    />
+  )
+}
+
+// Puan tablosu: maç sayfasında (maçın takımları vurgulu) ve basketbol lig sayfasında kullanılır
+export function BasketballStandingsTable({ leagueId, season, highlightIds = [], highlightNames = [] }: {
+  leagueId: string
+  season: string
+  highlightIds?: (string | undefined)[]
+  highlightNames?: string[]
+}) {
+  const standings = useDetailData(`bb-standings:${leagueId}:${season}`, () => getLeagueStandings(leagueId, season))
 
   if (standings.loading) return <LoadingState rows={8} />
   if (standings.error) return <ErrorState message={standings.error} />
   if (!standings.data) return <EmptyState message="Bu lig için puan durumu bulunmuyor." />
 
-  const highlighted = new Set([match.homeTeamId, match.awayTeamId])
+  const highlighted = new Set(highlightIds)
   const descriptions = [...new Set(standings.data.groups.flatMap((g) => g.rows.map((r) => r.description)).filter((d): d is string => d !== null))]
   const th = 'px-1.5 py-2 text-center font-semibold'
 
@@ -40,7 +61,8 @@ export default function BasketballStandingsTab({ match }: { match: Match }) {
             </thead>
             <tbody>
               {group.rows.map((row) => {
-                const isMatchTeam = highlighted.has(row.team.id)
+                // NBA / EuroLeague tablosu başka kaynaktan: id tutmaz, adla eşleştirilir
+                const isMatchTeam = highlighted.has(row.team.id) || highlightNames.some((name) => sameTeamName(row.team.name, name))
                 const color = row.description ? colorFor(row.description, descriptions.indexOf(row.description)) : undefined
                 return (
                   <tr key={row.team.id} className={`border-t border-white/5 ${isMatchTeam ? 'bg-accent/10 font-semibold' : ''}`}>
@@ -49,10 +71,14 @@ export default function BasketballStandingsTab({ match }: { match: Match }) {
                       {row.rank}
                     </td>
                     <td className="max-w-0 px-1.5 py-2.5">
-                      <span className="flex items-center gap-2.5">
+                      {/* NBA / EuroLeague / EuroCup'ta takım sayfası var */}
+                      <a
+                        href={hasBasketballTeamPage(leagueId) ? basketballTeamHref(leagueId, { id: row.team.id.replace(/^(espn|el)-/, ''), name: row.team.name }) : undefined}
+                        className="flex items-center gap-2.5 [&[href]]:hover:text-accent"
+                      >
                         <TeamLogo name={row.team.name} logo={row.team.logo} size="row" />
                         <span className="truncate">{row.team.name}</span>
-                      </span>
+                      </a>
                     </td>
                     <td className="px-1.5 py-2.5 text-center text-white/75">{row.played}</td>
                     <td className="px-1.5 py-2.5 text-center">{row.won}</td>

@@ -5,6 +5,8 @@ import * as apiBasketball from './providers/apiBasketball'
 import * as apiNba from './providers/apiNba'
 import type { NbaGameRef } from './providers/apiNba'
 import { addDays } from '../lib/date'
+import { getEuroleagueStandings, getNbaStandings } from './providers/basketballStandings'
+import { getEuroleagueCareer, getNbaCareer, type BasketballSeasonLine } from './providers/basketballCareer'
 
 // Basketbolun tek veri kapısı. Bileşenler hangi API'den geldiğini bilmez.
 //  - Liste, canlı skor, puan durumu: API-Basketball (NBA dahil bütün ligler; maçlar çift görünmez)
@@ -31,10 +33,20 @@ export async function findBasketballGame(id: string): Promise<Match | null> {
   return null
 }
 
+// Puan durumu: API-Basketball'un ücretsiz planı bu sezonu vermediği için NBA ESPN'den,
+// EuroLeague ve EuroCup resmi API'lerinden; diğer ligler API-Basketball'dan
 export function getBasketballStandings(match: Match): Promise<BasketballStandings | null> {
   const season = match.basketball?.season
   if (!season) return Promise.resolve(null)
-  return apiBasketball.getStandings(match.leagueId, season)
+  return getLeagueStandings(match.leagueId, season)
+}
+
+// Lig sayfası için: lig id'si ("bb-12") ve API-Basketball sezon biçimi ("2026-2027" ya da "2026")
+export function getLeagueStandings(leagueId: string, season: string): Promise<BasketballStandings | null> {
+  if (leagueId === NBA_LEAGUE_ID) return getNbaStandings(leagueId, season)
+  if (leagueId === 'bb-120') return getEuroleagueStandings('E', leagueId, season)
+  if (leagueId === 'bb-194') return getEuroleagueStandings('U', leagueId, season)
+  return apiBasketball.getStandings(leagueId, season)
 }
 
 // ---------- İki kaynaktaki maçı eşleştirme (ID'ler farklı) ----------
@@ -86,4 +98,45 @@ export async function getBasketballBoxScore(match: Match): Promise<NbaDetailResu
   if (isNbaMatch(match)) return getNbaDetail(match)
   const box = await apiBasketball.getPlayerStats(match)
   return box ? { kind: 'matched', box } : { kind: 'no-match' }
+}
+
+// ---------- Oyuncu geçmişi ----------
+// Box score'daki oyuncunun sezon sezon ortalamaları: NBA'de ESPN, EuroLeague / EuroCup'ta resmi API.
+// Diğer liglerde kaynak yok (null).
+export type CareerSource = { kind: 'nba'; teamName: string } | { kind: 'euroleague'; competition: 'E' | 'U' }
+
+export function careerSourceFor(match: Match, teamName: string): CareerSource | null {
+  if (isNbaMatch(match)) return { kind: 'nba', teamName }
+  if (match.leagueId === 'bb-120') return { kind: 'euroleague', competition: 'E' }
+  if (match.leagueId === 'bb-194') return { kind: 'euroleague', competition: 'U' }
+  return null
+}
+
+export function getBasketballCareer(name: string, source: CareerSource): Promise<BasketballSeasonLine[] | null> {
+  return source.kind === 'nba' ? getNbaCareer(name, source.teamName) : getEuroleagueCareer(name, source.competition)
+}
+
+// ---------- İstatistik liderleri (lig sayfası) ----------
+// Kendi backend'imiz (api/leaders.ts): NBA ESPN'den, EuroLeague / EuroCup resmi API'den; ilk 5, maç başı ortalama
+export interface BasketballLeader {
+  name: string
+  team: string | null
+  teamLogo: string | null
+  photo: string | null
+  value: number
+}
+export interface BasketballLeaderCategory {
+  key: string
+  label: string
+  leaders: BasketballLeader[]
+}
+
+const LEADER_SOURCES: Record<string, string> = { 'bb-12': 'nba', 'bb-120': 'E', 'bb-194': 'U' }
+
+export async function getBasketballLeaders(leagueId: string): Promise<BasketballLeaderCategory[] | null> {
+  const league = LEADER_SOURCES[leagueId]
+  if (!league) return null
+  const res = await fetch(`/api/leaders?league=${league}`)
+  if (!res.ok) return null
+  return ((await res.json()) as { categories: BasketballLeaderCategory[] }).categories
 }

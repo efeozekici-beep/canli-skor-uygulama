@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { getPlayerProfile } from '../services/playerService'
+import { getPlayerProfile, rememberPlayerTeam } from '../services/playerService'
 import { useDetailData } from '../hooks/useDetailData'
 import PlayerHeader from '../components/player/PlayerHeader'
 import PlayerTabs, { type PlayerTab } from '../components/player/PlayerTabs'
@@ -11,12 +11,18 @@ import { EmptyState, ErrorState, LoadingState } from '../components/match-detail
 
 interface Props {
   playerId: string
+  /** Kadrodan / maçtan açıldıysa oyuncunun takımı (ESPN'de doğru oyuncuyu bulmak için) */
+  teamHint?: string | null
   onBack: () => void
 }
 
 // Oyuncu sayfası (#/oyuncu/:id): başlık + Genel / Kariyer / Transferler / Kupalar
-export default function PlayerPage({ playerId, onBack }: Props) {
-  const profile = useDetailData(`profile:${playerId}`, () => getPlayerProfile(playerId))
+export default function PlayerPage({ playerId, teamHint = null, onBack }: Props) {
+  // Takım ipucu profil yüklenmeden önce kaydedilir; diğer sekmeler de aynı ipucunu kullanır
+  const profile = useDetailData(`profile:${playerId}`, () => {
+    rememberPlayerTeam(playerId, teamHint)
+    return getPlayerProfile(playerId)
+  })
   const [tab, setTab] = useState<PlayerTab>('overview')
 
   return (

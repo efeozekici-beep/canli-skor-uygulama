@@ -23,6 +23,8 @@ const PROVIDERS = {
   footballdata: { host: 'https://api.football-data.org/v4', key: { env: 'FOOTBALL_DATA_KEY', header: 'X-Auth-Token' }, apiSports: false },
   // Diğer ligler (Süper Lig...): puan durumu, krallık, günlük maçlar
   espn: { host: 'https://site.api.espn.com', key: null, apiSports: false },
+  // EuroLeague / EuroCup resmi API'si: bu sezonun puan durumu (anahtar yok)
+  euroleague: { host: 'https://api-live.euroleague.net', key: null, apiSports: false },
 } satisfies Record<string, ProviderConfig>
 type Provider = keyof typeof PROVIDERS
 
@@ -93,6 +95,25 @@ const PATTERNS: Record<Provider, [RegExp, Rule][]> = {
     [/^\/apis\/v2\/sports\/soccer\/[a-z0-9.]+\/standings$/, fixed(30 * MIN)],
     [/^\/apis\/site\/v2\/sports\/soccer\/[a-z0-9.]+\/statistics$/, fixed(3 * HOUR)],
     [/^\/apis\/site\/v2\/sports\/soccer\/[a-z0-9.]+\/scoreboard$/, espnDateTtl],
+    // Takım sayfası: ligdeki takımlar (1 gün) ve takımın maç takvimi (10 dk)
+    [/^\/apis\/site\/v2\/sports\/soccer\/[a-z0-9.]+\/teams$/, fixed(DAY)],
+    [/^\/apis\/site\/v2\/sports\/soccer\/[a-z0-9.]+\/teams\/\d+\/schedule$/, fixed(10 * MIN)],
+    // Oyuncu sayfası: oyuncu araması (7 gün) ve kulüp / lig bazında kariyer istatistikleri (1 gün)
+    [/^\/apis\/search\/v2$/, fixed(7 * DAY)],
+    [/^\/apis\/common\/v3\/sports\/soccer\/athletes\/\d+\/stats$/, fixed(DAY)],
+    [/^\/apis\/common\/v3\/sports\/soccer\/athletes\/\d+$/, fixed(DAY)],
+    // Basketbol: NBA puan durumu (30 dk)
+    [/^\/apis\/v2\/sports\/basketball\/nba\/standings$/, fixed(30 * MIN)],
+    // Basketbol oyuncu geçmişi: NBA oyuncusunun sezon ortalamaları (1 gün)
+    [/^\/apis\/common\/v3\/sports\/basketball\/nba\/athletes\/\d+\/stats$/, fixed(DAY)],
+  ],
+  euroleague: [
+    // Turlar listesi (1 gün) ve bir turun puan durumu (10 dk)
+    [/^\/v2\/competitions\/[EU]\/seasons\/[EU]\d{4}\/rounds$/, fixed(DAY)],
+    [/^\/v2\/competitions\/[EU]\/seasons\/[EU]\d{4}\/rounds\/\d+\/standings$/, fixed(10 * MIN)],
+    // Oyuncu geçmişi: sezonun oyuncu listesi ve oyuncunun sezon istatistikleri (1 gün)
+    [/^\/v2\/competitions\/[EU]\/seasons\/[EU]\d{4}\/people$/, fixed(DAY)],
+    [/^\/v2\/competitions\/[EU]\/seasons\/[EU]\d{4}\/people\/[A-Z0-9]+\/stats$/, fixed(DAY)],
   ],
 }
 
@@ -120,6 +141,7 @@ const RULES: Record<Provider, Record<string, Rule>> = {
     '/teams': fixed(DAY),
     '/leagues': fixed(DAY),
     '/coachs': fixed(DAY), // takımın teknik direktörü (kadroda boş gelirse)
+    '/players/squads': fixed(DAY), // takım sayfası: güncel kadro
   },
   basketball: {
     '/games': (q) => dateTtl(q),
@@ -134,6 +156,7 @@ const RULES: Record<Provider, Record<string, Rule>> = {
   },
   footballdata: {},
   espn: {},
+  euroleague: {},
 }
 
 // API-Sports hataları HTTP 200 ile gelir: { errors: { plan: "..." } } gibi
@@ -170,7 +193,7 @@ function parseTarget(url: URL) {
   let path = query.get('path')
   query.delete('provider')
   query.delete('path')
-  const m = url.pathname.match(/^\/api\/(football|basketball|nba|footballdata|espn)(\/.*)$/)
+  const m = url.pathname.match(/^\/api\/(football|basketball|nba|footballdata|espn|euroleague)(\/.*)$/)
   if (m) {
     provider = m[1]
     path = m[2]
@@ -196,7 +219,9 @@ async function fetchUpstream(env: Env, provider: Provider, path: string, rule: R
   }
   const qs = query.toString()
   try {
-    const res = await fetch(`${config.host}${path}${qs ? `?${qs}` : ''}`, { headers, signal: AbortSignal.timeout(10_000) })
+    headers.accept = 'application/json'
+    const target = `${config.host}${path}${qs ? `?${qs}` : ''}`
+    let res = await fetch(target, { headers, signal: AbortSignal.timeout(10_000) })
     if (!res.ok) {
       // football-data: 403 = ücretsiz plan bu sezonu/ligi vermiyor, 404 = yok. Kalıcı olduğu için 1 saat saklanır
       // (dakikada 10 istek sınırı boşa harcanmasın). 429 (çok istek) ve sunucu hataları saklanmaz.
@@ -204,7 +229,12 @@ async function fetchUpstream(env: Env, provider: Provider, path: string, rule: R
       if (permanent) await cacheSet(env, `${cacheKey}:error`, String(res.status), HOUR)
       return { ok: false, status: permanent ? res.status : 502, message: `${provider} HTTP ${res.status}` }
     }
-    const body = await res.text()
+    let body = await res.text()
+    // EuroLeague bazı adreslerde önbelleğinde kalmış XML veriyor: önbelleği atlatıp bir kez daha dene
+    if (body.trimStart().startsWith('<')) {
+      res = await fetch(`${target}${qs ? '&' : '?'}_=${Date.now()}`, { headers, signal: AbortSignal.timeout(10_000) })
+      body = await res.text()
+    }
     const parsed: unknown = JSON.parse(body)
     // API-Sports plan hatası kalıcıdır (6 saat sakla, kota harcanmasın); kota/anahtar hatası saklanmaz
     const kind = config.apiSports ? errorKind(parsed) : 'none'

@@ -3,6 +3,7 @@ import type { PlayerStatEntry } from '../../types/league'
 import { denseRanks } from '../../lib/league'
 import TeamLogo from '../TeamLogo'
 import PlayerAvatar from '../common/PlayerAvatar'
+import { playerHref } from '../../lib/navigation'
 
 interface Props {
   players: PlayerStatEntry[]
@@ -25,17 +26,23 @@ export default function PlayerStatList({ players, valueLabel }: Props) {
       </div>
       <ol className="divide-y divide-white/5 rounded-xl bg-white/[0.03]">
         {visible.map((player, i) => (
-          <li key={player.playerId} className="flex items-center gap-3 px-3 py-2.5">
-            <span className="w-6 text-center font-semibold text-white/70 tabular-nums">{ranks[i]}</span>
-            <PlayerAvatar name={player.name} photo={player.photo} size="md" />
-            <span className="min-w-0 flex-1">
-              <span className="block truncate font-medium">{player.name}</span>
-              <span className="mt-0.5 flex items-center gap-1.5 text-xs text-white/55">
-                <TeamLogo name={player.team.name} logo={player.team.logo} />
-                <span className="truncate">{player.team.name}</span>
+          <li key={player.playerId}>
+            {/* Gerçek oyuncuda (ESPN id'si) oyuncu sayfası; örnek veride düz satır */}
+            <a
+              href={/^espn-\d+$/.test(player.playerId) ? playerHref(player.playerId, player.team.name) : undefined}
+              className="flex items-center gap-3 px-3 py-2.5 [&[href]]:hover:bg-white/[0.05]"
+            >
+              <span className="w-6 text-center font-semibold text-white/70 tabular-nums">{ranks[i]}</span>
+              <PlayerAvatar name={player.name} photo={player.photo} size="md" />
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-medium">{player.name}</span>
+                <span className="mt-0.5 flex items-center gap-1.5 text-xs text-white/55">
+                  <TeamLogo name={player.team.name} logo={player.team.logo} />
+                  <span className="truncate">{player.team.name}</span>
+                </span>
               </span>
-            </span>
-            <span className="text-lg font-bold tabular-nums">{player.value}</span>
+              <span className="text-lg font-bold tabular-nums">{player.value}</span>
+            </a>
           </li>
         ))}
       </ol>

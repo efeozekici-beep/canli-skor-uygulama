@@ -7,6 +7,8 @@ import StarIcon from '../StarIcon'
 import { Ball } from './EventIcon'
 import GoalScore from '../common/GoalScore'
 import { useGoal } from '../../hooks/useGoal'
+import { basketballTeamHref, teamHref } from '../../lib/navigation'
+import { hasBasketballTeamPage } from '../../services/basketballTeamService'
 
 interface Props {
   match: Match
@@ -62,18 +64,34 @@ export default function MatchHeader({ match, events, isFavorite, onToggleFavorit
     </button>
   )
 
-  const team = (name: string, logo?: string) => (
-    <div className="flex min-w-0 flex-col items-center gap-2 text-center">
-      <TeamLogo name={name} logo={logo} size="lg" />
-      <span className="line-clamp-2 text-sm font-semibold sm:text-base">{name}</span>
-    </div>
-  )
+  // Takıma tıklayınca takım sayfası (futbol; basketbolda NBA / EuroLeague / EuroCup)
+  const team = (name: string, logo?: string, id?: string) => {
+    const content = (
+      <>
+        <TeamLogo name={name} logo={logo} size="lg" />
+        <span className="line-clamp-2 text-sm font-semibold sm:text-base">{name}</span>
+      </>
+    )
+    const href =
+      match.sport === 'football' && id
+        ? teamHref({ id, name }, match.leagueId)
+        : match.sport === 'basketball' && hasBasketballTeamPage(match.leagueId)
+          ? basketballTeamHref(match.leagueId, { name })
+          : null
+    return href ? (
+      <a href={href} className="flex min-w-0 flex-col items-center gap-2 rounded-lg text-center hover:text-accent">
+        {content}
+      </a>
+    ) : (
+      <div className="flex min-w-0 flex-col items-center gap-2 text-center">{content}</div>
+    )
+  }
 
   return (
     <div className="px-4 pt-4 pb-5">
       <div className="grid grid-cols-[auto_1fr_auto_1fr_auto] items-start gap-1 sm:gap-2">
         {star}
-        {team(match.homeTeam, match.homeLogo)}
+        {team(match.homeTeam, match.homeLogo, match.homeTeamId)}
         <div className="flex flex-col items-center px-1 pt-2">
           <span className={`relative overflow-hidden px-1 text-4xl font-extrabold tracking-tight tabular-nums sm:text-5xl ${match.status === 'live' ? 'text-red-400' : ''}`}>
             {hasScore ? (
@@ -86,7 +104,7 @@ export default function MatchHeader({ match, events, isFavorite, onToggleFavorit
           </span>
           <span className={`mt-1 text-sm font-semibold whitespace-nowrap ${status.className}`}>{status.text}</span>
         </div>
-        {team(match.awayTeam, match.awayLogo)}
+        {team(match.awayTeam, match.awayLogo, match.awayTeamId)}
         {star}
       </div>
 

@@ -6,6 +6,7 @@ import { teamColor } from '../../lib/team'
 import RatingBadge from './RatingBadge'
 import PlayerAvatar from '../common/PlayerAvatar'
 import { Card } from './EventIcon'
+import { playerHref } from '../../lib/navigation'
 
 interface Props {
   player: LineupPlayer
@@ -109,6 +110,17 @@ export default function PlayerPopover({ player, stats, teamName, onClose }: Prop
             {stats.yellow > 0 && <Card color="yellow" />}
             {stats.red > 0 && <Card color="red" />}
           </div>
+        )}
+
+        {/* Gerçek oyuncu (API-Football id'si sayı): kariyer ve sezon istatistikleri için oyuncu sayfası */}
+        {/^\d+$/.test(player.id) && (
+          <a
+            href={playerHref(player.id, teamName)}
+            onClick={onClose}
+            className="mt-4 flex min-h-11 items-center justify-center rounded-xl bg-accent/15 text-sm font-semibold text-accent hover:bg-accent/25"
+          >
+            Oyuncu sayfası
+          </a>
         )}
       </div>
     </div>,

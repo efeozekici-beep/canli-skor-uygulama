@@ -5,6 +5,8 @@ export interface TeamSearchResult {
   name: string
   logo?: string
   country: string | null
+  /** Takım sayfası adresi */
+  href: string
 }
 
 export interface LeagueSearchResult {
@@ -21,6 +23,8 @@ export interface PlayerSearchResult {
   /** Oyuncunun güncel takımı (biliniyorsa) */
   teamName: string | null
   teamLogo?: string
+  /** Oyuncu sayfası adresi */
+  href: string
 }
 
 export interface SearchResults {

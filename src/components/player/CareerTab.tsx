@@ -28,6 +28,9 @@ export default function CareerTab({ playerId }: { playerId: string }) {
 
   const sorted = [...career.data].sort((a, b) => b.season - a.season)
   const th = 'px-2 py-2 font-semibold'
+  // ESPN toplam maç vermiyor, ilk 11 veriyor: sütun adı ona göre
+  const startsOnly = sorted.every((e) => e.appearances === null) && sorted.some((e) => e.starts != null)
+  const games = (e: CareerEntry) => (startsOnly ? (e.starts ?? null) : e.appearances)
 
   return (
     <div className="p-3 sm:p-5">
@@ -37,7 +40,9 @@ export default function CareerTab({ playerId }: { playerId: string }) {
             <th className={`${th} text-left`}>Sezon</th>
             <th className={`${th} text-left`}>Takım</th>
             <th className={`${th} hidden text-left sm:table-cell`}>Lig</th>
-            <th className={`${th} text-center`} title="Maç">M</th>
+            <th className={`${th} text-center`} title={startsOnly ? 'İlk 11' : 'Maç'}>
+              {startsOnly ? 'İ11' : 'M'}
+            </th>
             <th className={`${th} text-center`} title="Gol">G</th>
             <th className={`${th} text-center`} title="Asist">A</th>
           </tr>
@@ -57,7 +62,7 @@ export default function CareerTab({ playerId }: { playerId: string }) {
                   </td>
                 )}
                 <td className="hidden px-2 py-2 text-white/60 sm:table-cell">{entry.league ?? '—'}</td>
-                <td className="px-2 py-2 text-center">{value(entry.appearances)}</td>
+                <td className="px-2 py-2 text-center">{value(games(entry))}</td>
                 <td className="px-2 py-2 text-center font-semibold">{value(entry.goals)}</td>
                 <td className="px-2 py-2 text-center">{value(entry.assists)}</td>
               </tr>

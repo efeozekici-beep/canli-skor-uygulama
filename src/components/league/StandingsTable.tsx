@@ -8,6 +8,8 @@ import TeamLogo from '../TeamLogo'
 import LeagueTabs from './LeagueTabs'
 import FormBadges from './FormBadges'
 import { EmptyState, ErrorState, LoadingState } from '../match-detail/TabStates'
+import { teamHref } from '../../lib/navigation'
+import { leagueSourceFor } from '../../config/leagueSources'
 
 interface Props {
   leagueId: string
@@ -23,7 +25,8 @@ const VIEWS: { id: StandingsView; label: string }[] = [
 ]
 
 // Tablo tek bir grup içindir; Dünya Kupası gibi turnuvalarda her grup için ayrı çizilir.
-function GroupTable({ rows, view, zones, playingToday, highlightTeams }: {
+function GroupTable({ rows, view, zones, playingToday, highlightTeams, teamLink }: {
+  teamLink: (team: { id: string; name: string }) => string
   rows: LeagueStandingRow[]
   view: StandingsView
   zones: Map<string, string>
@@ -78,11 +81,11 @@ function GroupTable({ rows, view, zones, playingToday, highlightTeams }: {
                   <span className={isPlayingToday ? 'text-red-400' : ''}>{rank}</span>
                 </td>
                 <td className="max-w-0 px-1.5 py-2.5">
-                  <span className="flex items-center gap-2.5">
+                  <a href={teamLink(row.team)} className="flex items-center gap-2.5 hover:text-accent">
                     <TeamLogo name={row.team.name} logo={row.team.logo} size="row" />
                     <span className={`truncate font-medium ${isPlayingToday ? 'text-red-400' : ''}`}>{row.team.name}</span>
                     {isPlayingToday && <span title="Bugün maçı var" className="size-1.5 shrink-0 rounded-full bg-red-500" />}
-                  </span>
+                  </a>
                 </td>
                 <td className="px-1.5 py-2.5 text-center text-white/75">{split.played}</td>
                 <td className="px-1.5 py-2.5 text-center text-white/75">{split.win}</td>
@@ -133,7 +136,14 @@ export default function StandingsTable({ leagueId, season, highlightTeams = [] }
         <section key={group.name}>
           {/* Birden fazla grup varsa her tablonun başlığı (Grup A, Grup B...) */}
           {groups.length > 1 && <h3 className="mb-2 px-1 text-sm font-semibold text-white/80">{group.name}</h3>}
-          <GroupTable rows={group.rows} view={activeView} zones={zones} playingToday={playingToday} highlightTeams={highlightTeams} />
+          <GroupTable
+            rows={group.rows}
+            view={activeView}
+            zones={zones}
+            playingToday={playingToday}
+            highlightTeams={highlightTeams}
+            teamLink={(team) => teamHref(team, leagueId, leagueSourceFor(leagueId)?.region)}
+          />
         </section>
       ))}
 

@@ -1,6 +1,8 @@
 import type { Match, MatchStatus } from '../../types/match'
 import type { LeagueInfo, LeagueStandingRow, LeagueStandings, PlayerStatEntry, StandingSplit } from '../../types/league'
 import { createCache, fetchJson } from './common'
+import { currentSeasonFor } from '../../lib/league'
+import { COUNTRY_TR } from '../../lib/leagueOrder'
 
 // ESPN adaptörü (anahtar gerekmez, kendi backend'imiz /api/espn üzerinden önbellekler):
 // lig puan durumu + bölge açıklamaları, gol/asist krallığı, günlük maç listesi.
@@ -37,11 +39,20 @@ export interface EspnStatistics {
   stats?: { name: string; leaders?: EspnLeader[] }[]
 }
 
+interface EspnStatus {
+  displayClock?: string
+  type: { name: string; state: 'pre' | 'in' | 'post'; completed: boolean }
+}
+
+// Günlük listede durum maçta, skor yazı ("2"); takım takviminde durum competition'da, skor nesne ({ value: 2 })
 interface EspnEvent {
   id: string
   date: string
-  status: { displayClock?: string; type: { name: string; state: 'pre' | 'in' | 'post'; completed: boolean } }
-  competitions: { competitors: { homeAway: 'home' | 'away'; score?: string; team: EspnTeam }[] }[]
+  status?: EspnStatus
+  competitions: {
+    status?: EspnStatus
+    competitors: { homeAway: 'home' | 'away'; score?: string | { value?: number; displayValue?: string }; team: EspnTeam }[]
+  }[]
 }
 
 export interface EspnScoreboard {
@@ -65,7 +76,9 @@ const TURKISH_NAMES: Record<string, string> = {
   Bodrumspor: 'Bodrum FK',
   'Erzurum BB': 'Erzurumspor FK',
 }
-const teamName = (team?: EspnTeam) => (team ? (TURKISH_NAMES[team.displayName] ?? team.displayName) : '')
+// Milli takımlar (Uluslar Ligi, Dünya Kupası elemeleri): "France" -> "Fransa"
+export const turkishTeamName = (name: string) => TURKISH_NAMES[name] ?? COUNTRY_TR[name] ?? name
+const teamName = (team?: EspnTeam) => (team ? turkishTeamName(team.displayName) : '')
 
 export function mapStandings(raw: EspnStandings, leagueId: string, season: number): LeagueStandings | null {
   const groups = (raw.children ?? []).map((child) => {
@@ -92,7 +105,8 @@ export function mapStandings(raw: EspnStandings, leagueId: string, season: numbe
         away: empty,
       }
     })
-    return { name: child.name, rows: rows.sort((a, b) => a.rank - b.rank) }
+    // "Group A1" -> "Grup A1"
+    return { name: child.name.replace(/^Group\b/, 'Grup'), rows: rows.sort((a, b) => a.rank - b.rank) }
   })
   if (groups.every((g) => g.rows.length === 0)) return null
   // ESPN ev/deplasman ayrımı ve form vermiyor
@@ -122,11 +136,13 @@ export function mapLeaders(raw: EspnStatistics, statName: 'goalsLeaders' | 'assi
 }
 
 function mapStatus(e: EspnEvent): { status: MatchStatus; minute: number | null; statusLabel?: string } {
-  const { state, completed, name } = e.status.type
+  const status = e.status ?? e.competitions[0]?.status
+  if (!status) return { status: 'upcoming', minute: null }
+  const { state, completed, name } = status.type
   if (state === 'post' && completed) return { status: 'finished', minute: null }
   if (state === 'in') {
     if (name === 'STATUS_HALFTIME') return { status: 'live', minute: null, statusLabel: 'İY' }
-    const minute = Number.parseInt(e.status.displayClock ?? '', 10)
+    const minute = Number.parseInt(status.displayClock ?? '', 10)
     return Number.isFinite(minute) ? { status: 'live', minute } : { status: 'live', minute: null, statusLabel: 'Canlı' }
   }
   if (name === 'STATUS_POSTPONED') return { status: 'upcoming', minute: null, statusLabel: 'Ert.' }
@@ -141,7 +157,8 @@ export function mapScoreboard(raw: EspnScoreboard, league: LeagueInfo, season: n
     const away = competitors.find((c) => c.homeAway === 'away')
     if (!home || !away) return []
     const state = mapStatus(e)
-    const score = (s?: string) => (state.status === 'upcoming' || s === undefined ? null : Number(s))
+    const score = (s?: string | { value?: number }) =>
+      state.status === 'upcoming' || s === undefined ? null : typeof s === 'string' ? Number(s) : (s.value ?? null)
     return [
       {
         id: `espn-${e.id}`,
@@ -167,13 +184,39 @@ export function mapScoreboard(raw: EspnScoreboard, league: LeagueInfo, season: n
 }
 
 // ---------- İstekler ----------
+
+// Ligdeki takımlar (takım sayfası ESPN takvimi için takımı adından bulur)
+export function getTeams(slug: string): Promise<{ id: string; name: string }[]> {
+  return cached(`teams:${slug}`, 24 * 60 * MIN, async () => {
+    const raw = await fetchJson<{ sports: { leagues: { teams: { team: EspnTeam }[] }[] }[] }>(LABEL, `${BASE}/apis/site/v2/sports/soccer/${slug}/teams`)
+    return (raw?.sports[0]?.leagues[0]?.teams ?? []).map(({ team }) => ({ id: team.id, name: team.displayName }))
+  })
+}
+
+// Takımın bu sezonki lig maçları: oynananlar + gelecek maçlar (iki istek, kota yok)
+export async function getTeamSchedule(slug: string, espnTeamId: string, league: LeagueInfo, season: number): Promise<Match[]> {
+  const load = (fixtures: boolean) =>
+    cached(`schedule:${slug}:${espnTeamId}:${fixtures ? 'next' : 'past'}`, 10 * MIN, () =>
+      fetchJson<EspnScoreboard>(LABEL, `${BASE}/apis/site/v2/sports/soccer/${slug}/teams/${espnTeamId}/schedule${fixtures ? '?fixture=true' : ''}`),
+    ).catch(() => null)
+  const [past, next] = await Promise.all([load(false), load(true)])
+  const byId = new Map<string, Match>()
+  for (const raw of [past, next]) if (raw) for (const m of mapScoreboard(raw, league, season)) byId.set(m.id, m)
+  return [...byId.values()].sort((a, b) => a.startTime.localeCompare(b.startTime))
+}
+// Güncel sezonda ?season= gönderilmez: takvim yılına göre işleyen turnuvalarda (Dünya Kupası elemeleri gibi)
+// "2026" sorusu boş dönebiliyor; ESPN parametresiz en güncel sezonu verir.
+const seasonQuery = (season: number) => (season === currentSeasonFor() ? '' : `?season=${season}`)
+
 export function getStandingsRaw(slug: string, season: number): Promise<EspnStandings | null> {
-  return cached(`standings:${slug}:${season}`, 30 * MIN, () => fetchJson<EspnStandings>(LABEL, `${BASE}/apis/v2/sports/soccer/${slug}/standings?season=${season}`))
+  return cached(`standings:${slug}:${season}`, 30 * MIN, () =>
+    fetchJson<EspnStandings>(LABEL, `${BASE}/apis/v2/sports/soccer/${slug}/standings${seasonQuery(season)}`),
+  )
 }
 
 export function getStatistics(slug: string, season: number): Promise<EspnStatistics | null> {
   return cached(`stats:${slug}:${season}`, 3 * 60 * MIN, () =>
-    fetchJson<EspnStatistics>(LABEL, `${BASE}/apis/site/v2/sports/soccer/${slug}/statistics?season=${season}`),
+    fetchJson<EspnStatistics>(LABEL, `${BASE}/apis/site/v2/sports/soccer/${slug}/statistics${seasonQuery(season)}`),
   )
 }
 

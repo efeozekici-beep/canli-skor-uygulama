@@ -1,7 +1,9 @@
 import type { LeagueSearchResult, PlayerSearchResult, SearchResults, TeamSearchResult } from '../types/search'
 import { apiGet } from './apiFootball'
+import { playerHref, teamHref } from '../lib/navigation'
 
-// API-Football arama uç noktaları ve dönüştürücüleri. Henüz searchService'e bağlı değil (şimdilik mock).
+// API-Football arama uç noktaları ve dönüştürücüleri. Kullanılmıyor: arama kota harcamasın diye ESPN'den
+// (searchService.ts). İleride gerekirse hazır dursun.
 // Not: API arama metninde en az 3 karakter ister.
 
 interface ApiTeamItem {
@@ -16,14 +18,14 @@ interface ApiPlayerProfileItem {
 }
 
 export const mapTeams = (items: ApiTeamItem[]): TeamSearchResult[] =>
-  items.map(({ team }) => ({ id: String(team.id), name: team.name, logo: team.logo, country: team.country }))
+  items.map(({ team }) => ({ id: String(team.id), name: team.name, logo: team.logo, country: team.country, href: teamHref({ id: String(team.id), name: team.name }) }))
 
 export const mapLeagues = (items: ApiLeagueItem[]): LeagueSearchResult[] =>
   items.map(({ league, country }) => ({ id: String(league.id), name: league.name, logo: league.logo, region: country.name }))
 
 // /players/profiles güncel takımı vermez; teamName null kalır.
 export const mapPlayers = (items: ApiPlayerProfileItem[]): PlayerSearchResult[] =>
-  items.map(({ player }) => ({ id: String(player.id), name: player.name, photo: player.photo, teamName: null }))
+  items.map(({ player }) => ({ id: String(player.id), name: player.name, photo: player.photo, teamName: null, href: playerHref(String(player.id)) }))
 
 // Üç arama tek seferde (3 istek). signal: yeni arama gelince eski istekler iptal edilir.
 export async function fetchSearch(query: string, signal?: AbortSignal): Promise<SearchResults> {

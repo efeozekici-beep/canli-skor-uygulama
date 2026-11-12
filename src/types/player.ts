@@ -52,6 +52,8 @@ export interface CareerEntry {
   team: TeamRef
   league: string | null
   appearances: number | null
+  /** İlk 11'de başladığı maç (ESPN toplam maç vermiyor, bunu veriyor) */
+  starts?: number | null
   goals: number | null
   assists: number | null
 }

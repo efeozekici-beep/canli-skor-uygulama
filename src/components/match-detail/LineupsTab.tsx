@@ -12,6 +12,7 @@ import PlayerPopover from './PlayerPopover'
 import RatingBadge from './RatingBadge'
 import PlayerIcons from './PlayerIcons'
 import { EmptyState, ErrorState, LoadingState } from './TabStates'
+import { teamHref } from '../../lib/navigation'
 
 interface Props {
   match: Match
@@ -34,8 +35,14 @@ function BenchList({ lineup, side, statsById, showRatings, highlightedId, showTe
   return (
     <section className="min-w-0 space-y-2">
       <h3 className="flex items-center gap-2 text-sm font-semibold text-white/70">
-        {showTeamName && <TeamLogo name={lineup.team.name} logo={lineup.team.logo} />}
-        <span className="truncate">{showTeamName ? `${lineup.team.name} yedekleri` : 'Yedekler'}</span>
+        {showTeamName ? (
+          <a href={teamHref({ id: lineup.team.id, name: lineup.team.name })} className="flex min-w-0 items-center gap-2 hover:text-accent">
+            <TeamLogo name={lineup.team.name} logo={lineup.team.logo} />
+            <span className="truncate">{lineup.team.name} yedekleri</span>
+          </a>
+        ) : (
+          <span className="truncate">Yedekler</span>
+        )}
       </h3>
       <ul className="divide-y divide-white/5 rounded-xl bg-white/[0.03]">
         {lineup.substitutes.map((p) => {

@@ -90,7 +90,7 @@ export function getEvents(id: string): Promise<MatchEvent[] | null> {
 }
 
 // Takımın teknik direktörü: 1 gün saklanır (tarayıcıda localStorage, sunucuda Redis)
-function getCurrentCoach(teamId: string) {
+export function getCurrentCoach(teamId: string) {
   const key = `canliskor:coach:v1:${teamId}`
   return cached(`coach:${teamId}`, LONG, async () => {
     const stored = readStore<{ name: string; photo?: string } | false>(key, 24 * 60 * 60_000, 'local')

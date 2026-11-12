@@ -48,18 +48,21 @@ export default function SearchResults({ listId, status, results, activeKey, onSe
     <ul id={listId} role="listbox" aria-label="Arama sonuçları" className="p-1">
       {results.teams.length > 0 && (
         <Group title="Takımlar">
-          {results.teams.map((t) => (
-            <SearchResultItem
-              key={t.id}
-              id={optionId(listId, `takim-${t.id}`)}
-              title={t.name}
-              subtitle={t.country}
-              image={t.logo}
-              kind="team"
-              active={false}
-              badge="Yakında"
-            />
-          ))}
+          {results.teams.map((t) => {
+            const key = `takim-${t.id}`
+            return (
+              <SearchResultItem
+                key={key}
+                id={optionId(listId, key)}
+                title={t.name}
+                subtitle={t.country}
+                image={t.logo}
+                kind="team"
+                active={isActive(key)}
+                onSelect={() => onSelect(t.href)}
+              />
+            )
+          })}
         </Group>
       )}
       {results.leagues.length > 0 && (
@@ -94,7 +97,7 @@ export default function SearchResults({ listId, status, results, activeKey, onSe
                 image={p.photo}
                 kind="player"
                 active={isActive(key)}
-                onSelect={() => onSelect(`#/oyuncu/${encodeURIComponent(p.id)}`)}
+                onSelect={() => onSelect(p.href)}
               />
             )
           })}
