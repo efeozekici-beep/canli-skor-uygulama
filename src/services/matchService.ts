@@ -25,9 +25,9 @@ function cacheKey(date: Date) {
   return `canliskor:fixtures:${date.toDateString()}`
 }
 
-function readCache(date: Date): Match[] | null {
+function readCache(date: Date, key = cacheKey(date)): Match[] | null {
   try {
-    const raw = sessionStorage.getItem(cacheKey(date))
+    const raw = sessionStorage.getItem(key)
     if (!raw) return null
     const { at, matches } = JSON.parse(raw) as { at: number; matches: Match[] }
     return Date.now() - at < ttlFor(date) ? matches : null
@@ -36,9 +36,9 @@ function readCache(date: Date): Match[] | null {
   }
 }
 
-function writeCache(date: Date, matches: Match[]) {
+function writeCache(date: Date, matches: Match[], key = cacheKey(date)) {
   try {
-    sessionStorage.setItem(cacheKey(date), JSON.stringify({ at: Date.now(), matches }))
+    sessionStorage.setItem(key, JSON.stringify({ at: Date.now(), matches }))
   } catch {
     // Storage full or unavailable; the next call will just refetch.
   }
@@ -80,8 +80,41 @@ export function findMatchById(id: string): Match | null {
   return MOCK_MATCHES.find((m) => m.id === id) ?? null
 }
 
+// API-Football ve API-Basketball'un ücretsiz planı sadece dün / bugün / yarını veriyor. Diğer günlerin listesi
+// /api/day'den gelir (futbol ESPN, basketbol NBA + EuroLeague / EuroCup); bu maçların sayfasında sadece başlık var.
+function outsideApiWindow(date: Date) {
+  const days = Math.round((startOfDay(date).getTime() - startOfDay(new Date()).getTime()) / 86_400_000)
+  return Math.abs(days) > 1
+}
+
+async function fetchOtherDay(sport: 'football' | 'basketball', date: Date, force: boolean): Promise<Match[]> {
+  const key = `canliskor:fixtures:day:${sport}:${date.toDateString()}`
+  if (!force) {
+    const cached = readCache(date, key)
+    if (cached) return cached
+  }
+  const pending = inflight.get(key)
+  if (pending) return pending
+  const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  const request = fetch(`/api/day?sport=${sport}&date=${day}`)
+    .then(async (res) => {
+      if (!res.ok) throw new Error('Bu günün maçları şu an alınamıyor.')
+      const matches = (await res.json()) as Match[]
+      writeCache(date, matches, key)
+      return matches
+    })
+    .finally(() => inflight.delete(key))
+  inflight.set(key, request)
+  return request
+}
+
 // The only place the UI gets match data from.
 export async function fetchMatches(sport: string, date: Date, { force = false } = {}): Promise<Match[]> {
+  if (!USE_MOCK && (sport === 'football' || sport === 'basketball') && outsideApiWindow(date)) {
+    const matches = await fetchOtherDay(sport, date, force)
+    registerMatches(matches)
+    return matches
+  }
   // Basketball has its own providers (and mock switch); see basketballService.
   if (sport === 'basketball') {
     const games = await getBasketballGames(date)

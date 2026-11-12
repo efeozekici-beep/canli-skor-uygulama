@@ -8,6 +8,7 @@ import { handleLiveRequest } from './api/live.ts'
 import { handleLeadersRequest } from './api/leaders.ts'
 import { handleTeamRequest } from './api/team.ts'
 import { handleArchiveRequest } from './api/archive.ts'
+import { handleDayRequest } from './api/day.ts'
 
 // Yerelde /api/* isteklerini canlıdaki backend koduyla (api/proxy.ts, api/photos.ts) karşılar:
 // anahtar ekleme, izinli uç noktalar ve önbellek yerelde de aynı çalışır.
@@ -25,7 +26,9 @@ function localApi(env: Record<string, string>): Plugin {
             ? handleTeamRequest
             : req.url.startsWith('/api/archive')
               ? handleArchiveRequest
-              : handleApiRequest
+              : req.url.startsWith('/api/day')
+                ? handleDayRequest
+                : handleApiRequest
     handler(request, env)
       .then(async (response) => {
         res.statusCode = response.status

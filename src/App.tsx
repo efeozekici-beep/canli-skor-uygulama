@@ -3,6 +3,7 @@ import Header from './components/Header'
 import ScoreScreen from './components/ScoreScreen'
 import MatchDetailPanel from './components/match-detail/MatchDetailPanel'
 import BasketballDetailPanel from './components/basketball/BasketballDetailPanel'
+import BasicMatchPanel from './components/match-detail/BasicMatchPanel'
 import LeaguePage from './pages/LeaguePage'
 import PlayerPage from './pages/PlayerPage'
 import { useHashRoute } from './hooks/useHashRoute'
@@ -84,7 +85,7 @@ function App() {
   // Arka plan: basketbolda (ve basketbol maç sayfasında) salon parkesi, diğerlerinde çim.
   // Parke fotoğrafı ancak basketbola ilk geçilince yüklenir (futbolcu ziyaretçi boşuna indirmesin),
   // sonra ekranda kalır ki geri dönüşlerde yumuşakça geçiş olsun.
-  const onCourt = sport === 'basketball' || Boolean(matchPageId?.startsWith('bb-'))
+  const onCourt = sport === 'basketball' || Boolean(matchPageId && /^(bb-|espn-nba-|el-)/.test(matchPageId))
   const [courtSeen, setCourtSeen] = useState(onCourt)
   if (onCourt && !courtSeen) setCourtSeen(true)
 
@@ -115,7 +116,9 @@ function App() {
           {/* Liste kartıyla aynı renk ve gölge; ama tam genişlik ve iç boşluksuz */}
           <div className="match-container-card m-0 max-w-none overflow-hidden rounded-none border-x-0 p-0 sm:rounded-[14px] sm:border-x">
             {/* Basketbol maçları (id "bb-" ile başlar) kendi detay panelini kullanır */}
-            {matchPageId.startsWith('bb-') ? (
+            {/^(espn|el)-/.test(matchPageId) ? (
+              <BasicMatchPanel key={matchPageId} matchId={matchPageId} onClose={goBack} />
+            ) : matchPageId.startsWith('bb-') ? (
               <BasketballDetailPanel key={matchPageId} matchId={matchPageId} onClose={goBack} />
             ) : (
               <MatchDetailPanel key={matchPageId} matchId={matchPageId} variant="page" onClose={goBack} />
