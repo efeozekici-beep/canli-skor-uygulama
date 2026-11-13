@@ -1,4 +1,6 @@
-export type DetailTab = 'details' | 'lineups' | 'stats' | 'standings' | 'matches' | 'media'
+import { t } from '../../i18n'
+
+export type DetailTab = 'details' | 'chat' | 'lineups' | 'stats' | 'standings' | 'matches' | 'media'
 
 const TABS: { id: DetailTab; label: string }[] = [
   { id: 'details', label: 'Ayrıntılar' },
@@ -7,6 +9,7 @@ const TABS: { id: DetailTab; label: string }[] = [
   { id: 'standings', label: 'Puan durumu' },
   { id: 'matches', label: 'Maçlar' },
   { id: 'media', label: 'Medya' },
+  { id: 'chat', label: 'Sohbet' },
 ]
 
 interface Props {
@@ -17,7 +20,7 @@ interface Props {
 // Yatay kaydırılabilir sekme çubuğu; aktif sekmenin altında yeşil çizgi.
 export default function DetailTabs({ active, onChange }: Props) {
   return (
-    <div role="tablist" aria-label="Maç detayı" className="no-scrollbar flex overflow-x-auto border-y border-white/10 px-2">
+    <div role="tablist" aria-label={t('Maç detayı')} className="no-scrollbar flex overflow-x-auto border-y border-white/10 px-2">
       {TABS.map((tab) => {
         const isActive = tab.id === active
         return (
@@ -31,7 +34,7 @@ export default function DetailTabs({ active, onChange }: Props) {
               isActive ? 'text-white' : 'text-white/50 hover:text-white/80'
             }`}
           >
-            {tab.label}
+            {t(tab.label)}
             {isActive && <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-accent" />}
           </button>
         )

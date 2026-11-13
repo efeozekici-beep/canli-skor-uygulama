@@ -13,6 +13,7 @@ import RatingBadge from './RatingBadge'
 import PlayerIcons from './PlayerIcons'
 import { EmptyState, ErrorState, LoadingState } from './TabStates'
 import { teamHref } from '../../lib/navigation'
+import { t } from '../../i18n'
 
 interface Props {
   match: Match
@@ -73,7 +74,7 @@ function BenchList({ lineup, side, statsById, showRatings, highlightedId, showTe
       <div className="flex items-center gap-3 rounded-xl bg-white/[0.03] px-3 py-2">
         <PlayerAvatar photo={lineup.coachPhoto} name={lineup.coach} size="base" />
         <p className="min-w-0 text-sm">
-          <span className="block text-xs text-white/50">Teknik direktör</span>
+          <span className="block text-xs text-white/50">{t('Teknik direktör')}</span>
           <span className="block truncate font-semibold">{lineup.coach}</span>
         </p>
       </div>
@@ -92,7 +93,7 @@ export default function LineupsTab({ match, highlightedPlayerId }: Props) {
 
   if (lineups.loading) return <LoadingState rows={6} />
   if (lineups.error) return <ErrorState message={lineups.error} />
-  if (!lineups.data) return <EmptyState message="Bu maç için kadro verisi yok." />
+  if (!lineups.data) return <EmptyState message={t('Bu maç için kadro verisi yok.')} />
   const data = lineups.data
   const sides: Side[] = view === 'both' ? ['home', 'away'] : [view]
 
@@ -109,9 +110,9 @@ export default function LineupsTab({ match, highlightedPlayerId }: Props) {
   return (
     <div className="space-y-4 p-4">
       {/* Görünüm seçici: iki takım ya da tek takım (adın yanında takım ortalama reytingi) */}
-      <div role="tablist" aria-label="Kadro görünümü" className="grid grid-cols-[auto_1fr_1fr] gap-1 rounded-full bg-black/30 p-1">
+      <div role="tablist" aria-label={t('Kadro görünümü')} className="grid grid-cols-[auto_1fr_1fr] gap-1 rounded-full bg-black/30 p-1">
         <button type="button" role="tab" aria-selected={view === 'both'} onClick={() => setView('both')} className={tabClass(view === 'both')}>
-          İki takım
+          {t('İki takım')}
         </button>
         {(['home', 'away'] as const).map((s) => {
           const avg = showRatings ? average(s) : null

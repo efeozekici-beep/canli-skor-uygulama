@@ -1,4 +1,5 @@
 import type { MatchStatus } from '../types/match'
+import { t } from '../i18n'
 
 interface Props {
   active: MatchStatus | null
@@ -15,28 +16,28 @@ export default function StatusFilters({ active, liveCount, onChange }: Props) {
 
   const neutral = (status: MatchStatus) =>
     active === status
-      ? 'bg-white text-pitch-950 ring-white'
+      ? 'bg-accent text-onaccent ring-accent'
       : 'bg-white/5 text-white ring-white/10 hover:bg-white/10'
 
   return (
-    <div role="group" aria-label="Maç durumu filtresi" className="flex gap-2">
+    <div role="group" aria-label={t('Maç durumu filtresi')} className="flex gap-2">
       <button
         type="button"
         aria-pressed={active === 'live'}
         onClick={() => toggle('live')}
         className={`${base} ${
           active === 'live'
-            ? 'bg-red-500 text-white ring-red-500'
+            ? 'bg-red-500 text-onaccent ring-red-500'
             : 'bg-red-500/15 text-red-300 ring-red-500/30 hover:bg-red-500/25'
         }`}
       >
-        Canlı <span className="tabular-nums">({liveCount})</span>
+        {t('Canlı')} <span className="tabular-nums">({liveCount})</span>
       </button>
       <button type="button" aria-pressed={active === 'finished'} onClick={() => toggle('finished')} className={`${base} ${neutral('finished')}`}>
-        Bitti
+        {t('Bitti')}
       </button>
       <button type="button" aria-pressed={active === 'upcoming'} onClick={() => toggle('upcoming')} className={`${base} ${neutral('upcoming')}`}>
-        Yaklaşan
+        {t('Yaklaşan')}
       </button>
     </div>
   )

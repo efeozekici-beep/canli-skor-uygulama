@@ -9,6 +9,7 @@ import MatchRow from '../components/MatchRow'
 import { BasketballStandingsTable } from '../components/basketball/BasketballStandingsTab'
 import LeadersPanel from '../components/basketball/LeadersPanel'
 import { EmptyState } from '../components/match-detail/TabStates'
+import { t } from '../i18n'
 
 type Tab = 'standings' | 'matches'
 
@@ -57,14 +58,14 @@ export default function BasketballLeaguePage({ leagueId, onBack, onSelectMatch }
         <button
           type="button"
           onClick={onBack}
-          aria-label="Geri"
+          aria-label={t('Geri')}
           className="grid size-10 shrink-0 place-items-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
         >
           <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="size-5">
             <path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <p className="px-2 text-xs font-medium text-accent">Lig</p>
+        <p className="px-2 text-xs font-medium text-accent">{t('Lig')}</p>
       </div>
 
       <div className="flex items-center gap-4 px-4 py-5 sm:px-6">
@@ -76,13 +77,13 @@ export default function BasketballLeaguePage({ leagueId, onBack, onSelectMatch }
         </div>
       </div>
 
-      <LeagueTabs tabs={TABS} active={tab} onChange={setTab} label="Lig sayfası" />
+      <LeagueTabs tabs={TABS} active={tab} onChange={setTab} label={t('Lig sayfası')} />
       <div role="tabpanel" className="flex-1">
         {/* Geniş ekranda tablo solda, istatistik liderleri sağda; telefonda liderler tablonun altında */}
         {tab === 'standings' && (
           <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_300px] lg:gap-4 lg:pr-5">
             <div className="min-w-0">
-              {season ? <BasketballStandingsTable leagueId={leagueId} season={season} /> : <EmptyState message="Bu lig için puan durumu bulunmuyor." />}
+              {season ? <BasketballStandingsTable leagueId={leagueId} season={season} /> : <EmptyState message={t('Bu lig için puan durumu bulunmuyor.')} />}
             </div>
             <div className="px-3 pb-5 sm:px-5 lg:px-0 lg:pt-5">
               <LeadersPanel leagueId={leagueId} />
@@ -91,7 +92,7 @@ export default function BasketballLeaguePage({ leagueId, onBack, onSelectMatch }
         )}
         {tab === 'matches' &&
           (matches.length === 0 ? (
-            <EmptyState message="Dün, bugün ve yarın bu ligde maç yok." />
+            <EmptyState message={t('Dün, bugün ve yarın bu ligde maç yok.')} />
           ) : (
             <div className="p-3 sm:p-5">
               <ul className="overflow-hidden rounded-xl bg-white/[0.03]">

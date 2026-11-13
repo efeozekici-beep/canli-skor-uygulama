@@ -3,33 +3,134 @@
 @theme {
   --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 
-  --color-pitch-950: #082513;
-  --color-pitch-900: #0d3b1e;
-  --color-pitch-700: #145a32;
-  --color-accent: #34d058;
+  /* Renkler temaya göre değişir (açık: mavi-beyaz, koyu: lacivert). Değerler aşağıdaki :root / [data-theme='dark']
+     bloklarındaki --cs-* değişkenlerinde. Eski adlar korunuyor: "pitch" artık yüzey rengi, "accent" mavi,
+     "white" ana yazı rengi (açık temada lacivert), "onaccent" renkli zemin üstündeki her zaman beyaz yazı. */
+  --color-pitch-950: var(--cs-surface);
+  --color-pitch-900: var(--cs-surface-2);
+  --color-pitch-700: var(--cs-surface-3);
+  --color-accent: var(--cs-accent);
+  --color-white: var(--cs-text);
+  --color-black: var(--cs-shade);
+  --color-onaccent: #ffffff;
+  --color-brand-red: var(--cs-red);
+  --color-red-300: var(--cs-red-soft);
+  --color-red-400: var(--cs-red);
+  --color-amber-300: var(--cs-amber-soft);
+  --color-amber-400: var(--cs-amber);
+  --color-sky-300: var(--cs-sky);
+  --color-slate-200: var(--cs-slate);
 
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 
   /* shadcn bileşenlerinin beklediği renkler (bg-background, border-input, ring...), sitenin koyu yeşil temasına göre.
      Not: --color-accent sitenin parlak yeşili olarak kalıyor; shadcn'in "accent"i farklı anlamda ama arama kutusu kullanmıyor. */
-  --color-background: #0e1812;
-  --color-foreground: #e1e7e3;
-  --color-border: rgba(255, 255, 255, 0.1);
-  --color-input: rgba(255, 255, 255, 0.14);
-  --color-ring: #34d058;
-  --color-muted: rgba(255, 255, 255, 0.1);
-  --color-muted-foreground: rgba(225, 231, 227, 0.6);
-  --color-primary: #34d058;
-  --color-primary-foreground: #0d3b1e;
-  --color-secondary: rgba(255, 255, 255, 0.08);
-  --color-secondary-foreground: #e1e7e3;
+  --color-background: var(--cs-surface);
+  --color-foreground: var(--cs-text);
+  --color-border: var(--cs-line);
+  --color-input: var(--cs-line-strong);
+  --color-ring: var(--cs-accent);
+  --color-muted: var(--cs-line);
+  --color-muted-foreground: var(--cs-muted);
+  --color-primary: var(--cs-accent);
+  --color-primary-foreground: var(--cs-on-accent);
+  --color-secondary: var(--cs-line);
+  --color-secondary-foreground: var(--cs-text);
   --color-destructive: #ef4444;
   --color-destructive-foreground: #ffffff;
-  --color-accent-foreground: #0d3b1e;
+  --color-accent-foreground: var(--cs-on-accent);
+}
+
+/* ───────────── Tema değerleri ─────────────
+   Açık tema varsayılan; koyu tema <html data-theme="dark"> ile (index.html'deki küçük betik cihaz ayarına ya da
+   kullanıcının seçimine göre koyar, src/lib/theme.ts değiştirir). */
+:root {
+  --cs-surface: #ffffff;
+  --cs-surface-2: #f3f6fc;
+  --cs-surface-3: #dbe6f7;
+  --cs-text: #0f2347;
+  --cs-muted: rgba(15, 35, 71, 0.6);
+  --cs-shade: #0f2347;
+  --cs-line: rgba(15, 35, 71, 0.1);
+  --cs-line-strong: rgba(15, 35, 71, 0.18);
+  --cs-accent: #1d4ed8;
+  --cs-on-accent: #ffffff;
+  --cs-red: #dc2626;
+  --cs-red-soft: #dc2626;
+  --cs-amber: #d97706;
+  --cs-amber-soft: #b45309;
+  --cs-sky: #0369a1;
+  --cs-slate: #334155;
+
+  --cs-card: rgba(255, 255, 255, 0.96);
+  --cs-card-border: rgba(29, 78, 216, 0.12);
+  --cs-card-shadow: 0 15px 40px rgba(10, 30, 70, 0.28);
+  --cs-row-line: rgba(15, 35, 71, 0.06);
+  --cs-row-hover: rgba(29, 78, 216, 0.06);
+  --cs-time: #64748b;
+  --cs-team: #0f2347;
+  --cs-score-bg: #eef3fb;
+  --cs-score: #0f2347;
+  --cs-icon: #94a3b8;
+  --cs-icon-hover: #0f2347;
+  --cs-live-bg: rgba(220, 38, 38, 0.1);
+  --cs-break-bg: rgba(217, 119, 6, 0.12);
+
+  /* Arka plan fotoğrafı: aydınlık, hafif mavi-beyaz perde, kenarlarda yumuşak mavi */
+  --bg-base: #cfe0f5;
+  --bg-bright: 0.95;
+  --bg-sat: 1.05;
+  --bg-overlay:
+    radial-gradient(ellipse at 50% 40%, transparent 45%, rgba(29, 78, 216, 0.18) 100%),
+    rgba(232, 241, 255, 0.28);
+}
+
+:root[data-theme='dark'] {
+  --cs-surface: #0a1530;
+  --cs-surface-2: #10204a;
+  --cs-surface-3: #1a3166;
+  --cs-text: #ffffff;
+  --cs-muted: rgba(226, 234, 248, 0.6);
+  --cs-shade: #000000;
+  --cs-line: rgba(255, 255, 255, 0.1);
+  --cs-line-strong: rgba(255, 255, 255, 0.16);
+  --cs-accent: #60a5fa;
+  --cs-on-accent: #0a1530;
+  --cs-red: #f87171;
+  --cs-red-soft: #fca5a5;
+  --cs-amber: #fbbf24;
+  --cs-amber-soft: #fcd34d;
+  --cs-sky: #7dd3fc;
+  --cs-slate: #e2e8f0;
+
+  --cs-card: rgba(10, 21, 48, 0.9);
+  --cs-card-border: rgba(255, 255, 255, 0.08);
+  --cs-card-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+  --cs-row-line: rgba(255, 255, 255, 0.05);
+  --cs-row-hover: rgba(96, 165, 250, 0.1);
+  --cs-time: #94a3b8;
+  --cs-team: #eef3fb;
+  --cs-score-bg: rgba(0, 0, 0, 0.3);
+  --cs-score: #ffffff;
+  --cs-icon: #64748b;
+  --cs-icon-hover: #e2e8f0;
+  --cs-live-bg: rgba(239, 68, 68, 0.16);
+  --cs-break-bg: rgba(251, 191, 36, 0.14);
+
+  /* Arka plan fotoğrafı: karartılmış, lacivert perde, kenarlarda koyu */
+  --bg-base: #0a1530;
+  --bg-bright: 0.55;
+  --bg-sat: 0.9;
+  --bg-overlay:
+    radial-gradient(ellipse at 50% 40%, transparent 40%, rgba(2, 6, 20, 0.55) 100%),
+    rgba(8, 18, 45, 0.35);
 }
 
 @layer base {
   html {
+    color-scheme: light;
+  }
+  html[data-theme='dark'] {
     color-scheme: dark;
   }
 
@@ -38,20 +139,22 @@
     --radius: 0.625rem;
   }
 
-  /* Sayfa: çim yeşili taban (saha deseni .cinematic-bg katmanında) */
+  /* Sayfa: temaya göre zemin rengi (fotoğraf .cinematic-bg katmanında) */
   body {
     @apply font-sans antialiased;
-    background-color: #2a8f43;
-    color: #e1e7e3;
+    background-color: var(--bg-base);
+    color: var(--cs-text);
     margin: 0;
     min-height: 100vh;
   }
 }
 
 /* ───────────── Spora göre arka plan ─────────────
-   Futbol (ve diğerleri): gerçek saha çimi (public/backgrounds/grass.jpg — Pexels, ücretsiz lisans).
-   Basketbol: boş salon ve parke (public/backgrounds/basketball.jpg — WordPress Photo Directory, CC0).
-   Sekme değişince fotoğraflar yumuşakça geçiş yapar (opacity). Üstte hafif kenar karartması var ki kart öne çıksın.
+   Her sporun fotoğrafı public/backgrounds/<spor>.jpg (lisansları KAYNAKLAR.md'de). Futbol stadyumu en altta
+   hep durur; diğer sporlar üstünde belirir. Sekme değişince fotoğraflar yumuşakça geçiş yapar (opacity).
+   Temaya uyum: açık temada aydınlık ve hafif mavi tonlu, koyu temada karartılmış ve lacivert tonlu
+   (--bg-bright, --bg-sat, --bg-overlay; değerleri aşağıdaki :root / [data-theme='dark'] bloklarında).
+   Fotoğrafı doğal olarak çok aydınlık ya da karanlık olan sporlar --bg-dim ile dengelenir.
    (Kapsayıcıya overflow:hidden verilseydi yapışkan üst menü bozulurdu; bu yüzden ayrı, fixed katman.) */
 @layer components {
   .cinematic-bg {
@@ -60,8 +163,8 @@
     z-index: -10;
     overflow: hidden;
     pointer-events: none;
-    /* Fotoğraf yüklenene kadar görünen çim yeşili */
-    background-color: #2a8f43;
+    /* Fotoğraf yüklenene kadar görünen zemin rengi (temaya göre) */
+    background-color: var(--bg-base);
   }
 
   /* Fotoğraf katmanları: hafif bulanık, arka planda kalsın.
@@ -71,27 +174,64 @@
     inset: -24px;
     background-position: center;
     background-size: cover;
-    filter: blur(6px);
+    filter: blur(6px) brightness(calc(var(--bg-bright) * var(--bg-dim, 1))) saturate(var(--bg-sat));
+    transition: filter 300ms ease;
   }
+  /* Futbol: stadyum (en alttaki, hep duran katman) */
   .cinematic-bg__photo--grass {
-    background-image: url('/backgrounds/grass.jpg');
+    background-image: url('/backgrounds/football.jpg');
+    background-position: center 60%;
   }
-  /* Salon fotoğrafı çimden aydınlık (beyaz duvarlar, lambalar): kart okunur kalsın diye biraz koyulaştırılır */
-  .cinematic-bg__photo--court {
-    background-image: url('/backgrounds/basketball.jpg');
-    background-position: center 70%;
-    filter: blur(6px) brightness(0.62);
+  .cinematic-bg__photo--sport {
     opacity: 0;
     transition: opacity 450ms ease;
   }
-  .cinematic-bg__photo--court.is-active {
+  .cinematic-bg__photo--sport.is-active {
     opacity: 1;
   }
   /* İlk kez eklendiğinde de görünmezden başlayıp belirsin */
   @starting-style {
-    .cinematic-bg__photo--court.is-active {
+    .cinematic-bg__photo--sport.is-active {
       opacity: 0;
     }
+  }
+  .cinematic-bg__photo--basketball {
+    background-image: url('/backgrounds/basketball.jpg');
+    background-position: center 55%;
+  }
+  .cinematic-bg__photo--tennis {
+    background-image: url('/backgrounds/tennis.jpg');
+    background-position: center 70%;
+  }
+  .cinematic-bg__photo--f1 {
+    background-image: url('/backgrounds/f1.jpg');
+    background-position: center 65%;
+  }
+  .cinematic-bg__photo--hockey {
+    background-image: url('/backgrounds/hockey.jpg');
+    background-position: center 60%;
+  }
+  .cinematic-bg__photo--baseball {
+    background-image: url('/backgrounds/baseball.jpg');
+    background-position: center 75%;
+  }
+  .cinematic-bg__photo--handball {
+    background-image: url('/backgrounds/handball.jpg');
+  }
+  .cinematic-bg__photo--rugby {
+    background-image: url('/backgrounds/rugby.jpg');
+  }
+  .cinematic-bg__photo--american-football {
+    background-image: url('/backgrounds/american-football.jpg');
+  }
+  .cinematic-bg__photo--volleyball {
+    background-image: url('/backgrounds/volleyball.jpg');
+    background-position: center 60%;
+  }
+  /* MMA fotoğrafı zaten karanlık bir salon: daha az koyulaştırılır */
+  .cinematic-bg__photo--mma {
+    background-image: url('/backgrounds/mma.jpg');
+    --bg-dim: 1.25;
   }
 
   /* Üstte hafif genel karartma + kenar karartması */
@@ -99,17 +239,18 @@
     content: "";
     position: absolute;
     inset: 0;
-    background:
-      radial-gradient(ellipse at 50% 45%, transparent 40%, rgba(0, 0, 0, 0.35) 100%),
-      rgba(0, 0, 0, 0.15);
+    background: var(--bg-overlay);
+    transition: background 300ms ease;
   }
 
   /* Maç listesinin ana kartı: endüstriyel koyu yeşil-gri; çimden şeffaflık + gölgeyle ayrılır */
   .match-container-card {
-    background-color: rgba(19, 27, 22, 0.88);
+    background-color: var(--cs-card);
     backdrop-filter: blur(8px);
-    border: 1px solid rgba(255, 255, 255, 0.07);
-    box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+    border: 1px solid var(--cs-card-border);
+    /* Üstte ince kırmızı-mavi şerit: sitenin kırmızı detayı */
+    border-top: 3px solid var(--cs-red);
+    box-shadow: var(--cs-card-shadow);
     border-radius: 14px;
     padding: 16px;
     max-width: 900px;
@@ -121,14 +262,14 @@
     display: flex;
     align-items: center;
     padding: 12px 12px;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    border-bottom: 1px solid var(--cs-row-line);
     transition: background-color 0.2s ease;
     cursor: pointer;
   }
 
   @media (hover: hover) {
     .match-row:hover {
-      background-color: rgba(31, 51, 38, 0.7);
+      background-color: var(--cs-row-hover);
     }
   }
 
@@ -137,7 +278,7 @@
     width: 52px;
     flex-shrink: 0;
     font-size: 12px;
-    color: #a0aec0;
+    color: var(--cs-time);
     font-weight: 600;
     text-align: center;
   }
@@ -154,13 +295,13 @@
   }
 
   .status-badge--live {
-    background-color: rgba(239, 68, 68, 0.14);
-    color: #fca5a5;
+    background-color: var(--cs-live-bg);
+    color: var(--cs-red);
   }
 
   .status-badge--break {
-    background-color: rgba(251, 191, 36, 0.14);
-    color: #fcd34d;
+    background-color: var(--cs-break-bg);
+    color: var(--cs-amber-soft);
   }
 
   /* 2. seviye: takım adı + logo */
@@ -171,7 +312,7 @@
     min-width: 0;
     font-size: 14px;
     font-weight: 500;
-    color: #f1f5f2;
+    color: var(--cs-team);
   }
 
   /* 3. seviye (en belirgin): ortadaki skor kutusu */
@@ -179,11 +320,11 @@
     min-width: 60px;
     padding: 4px 8px;
     border-radius: 8px;
-    background-color: rgba(0, 0, 0, 0.28);
+    background-color: var(--cs-score-bg);
     text-align: center;
     font-size: 16px;
     font-weight: 800;
-    color: #ffffff;
+    color: var(--cs-score);
     letter-spacing: 0.02em;
   }
 
@@ -210,13 +351,13 @@
     display: flex;
     align-items: center;
     gap: 12px;
-    color: #718096;
+    color: var(--cs-icon);
     cursor: pointer;
     transition: color 0.2s ease;
   }
 
   .match-actions:hover {
-    color: #e2e8f0;
+    color: var(--cs-icon-hover);
   }
 }
 

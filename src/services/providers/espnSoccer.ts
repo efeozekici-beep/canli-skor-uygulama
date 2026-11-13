@@ -193,6 +193,49 @@ export function getTeams(slug: string): Promise<{ id: string; name: string }[]> 
   })
 }
 
+// Kadrodaki oyuncuların bu sezonki lig istatistikleri (ESPN takım kadrosu; kota yok)
+export interface EspnRosterStats {
+  jersey: number | null
+  name: string
+  appearances: number
+  starts: number
+  goals: number
+  assists: number
+  yellow: number
+  red: number
+}
+
+interface EspnRosterAthlete {
+  displayName: string
+  jersey?: string
+  statistics?: { splits?: { categories?: { stats: { name: string; value: number }[] }[] } }
+}
+
+export function getRosterStats(slug: string, espnTeamId: string): Promise<EspnRosterStats[]> {
+  return cached(`roster:${slug}:${espnTeamId}`, 3 * 60 * MIN, async () => {
+    const raw = await fetchJson<{ athletes?: EspnRosterAthlete[] }>(LABEL, `${BASE}/apis/site/v2/sports/soccer/${slug}/teams/${espnTeamId}/roster`)
+    return (raw?.athletes ?? []).flatMap((a) => {
+      // İstatistiği hiç olmayan oyuncu bu sezon ligde oynamamış: hepsi 0
+      const cats = a.statistics?.splits?.categories ?? []
+      const v: Record<string, number> = Object.fromEntries(cats.flatMap((c) => c.stats.map((s) => [s.name, s.value ?? 0])))
+      const appearances = v.appearances ?? 0
+      return [
+        {
+          jersey: a.jersey ? Number(a.jersey) : null,
+          name: a.displayName,
+          appearances,
+          // ESPN "maça girdi" ve "yedekten girdi" veriyor: ilk 11 = ikisinin farkı
+          starts: Math.max(0, appearances - (v.subIns ?? 0)),
+          goals: v.totalGoals ?? 0,
+          assists: v.goalAssists ?? 0,
+          yellow: v.yellowCards ?? 0,
+          red: v.redCards ?? 0,
+        },
+      ]
+    })
+  })
+}
+
 // Takımın bu sezonki lig maçları: oynananlar + gelecek maçlar (iki istek, kota yok)
 export async function getTeamSchedule(slug: string, espnTeamId: string, league: LeagueInfo, season: number): Promise<Match[]> {
   const load = (fixtures: boolean) =>

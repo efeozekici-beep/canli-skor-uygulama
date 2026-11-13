@@ -2,6 +2,7 @@ import { getBasketballLeaders } from '../../services/basketballService'
 import { useDetailData } from '../../hooks/useDetailData'
 import PlayerAvatar from '../common/PlayerAvatar'
 import TeamLogo from '../TeamLogo'
+import { t } from '../../i18n'
 
 // Lig sayfasında puan tablosunun yanında: sayı / ribaund / asist... kralları (maç başı ortalama, ilk 5).
 // Kaynağı olmayan liglerde hiç çizilmez.
@@ -21,12 +22,12 @@ export default function LeadersPanel({ leagueId }: { leagueId: string }) {
 
   return (
     <div className="space-y-3">
-      <h3 className="px-1 text-sm font-semibold text-white/80">İstatistik liderleri</h3>
+      <h3 className="px-1 text-sm font-semibold text-white/80">{t('İstatistik liderleri')}</h3>
       {leaders.data.map((cat) => (
         <section key={cat.key} className="rounded-xl bg-white/[0.04] p-3">
           <h4 className="mb-2 flex items-baseline justify-between text-xs font-semibold text-white/60">
-            {cat.label}
-            <span className="font-normal text-white/35">maç başı</span>
+            {t(cat.label)}
+            <span className="font-normal text-white/35">{t('maç başı')}</span>
           </h4>
           <ol className="space-y-1.5">
             {cat.leaders.map((l, i) => (

@@ -6,6 +6,7 @@ import { useDetailData } from '../../hooks/useDetailData'
 import { matchTeamIds } from '../../lib/team'
 import TeamLogo from '../TeamLogo'
 import { EmptyState, ErrorState, LoadingState } from './TabStates'
+import { locale, t } from '../../i18n'
 
 type Result = 'G' | 'B' | 'M'
 
@@ -19,7 +20,7 @@ function resultFor(m: PastMatch, teamId: string): Result {
 const RESULT_STYLE: Record<Result, string> = {
   G: 'bg-accent text-pitch-950',
   B: 'bg-white/25 text-white',
-  M: 'bg-red-500 text-white',
+  M: 'bg-red-500 text-onaccent',
 }
 
 function ResultBadge({ result }: { result: Result }) {
@@ -27,7 +28,7 @@ function ResultBadge({ result }: { result: Result }) {
 }
 
 function PastMatchRow({ match, teamId }: { match: PastMatch; teamId?: string }) {
-  const date = new Date(match.date).toLocaleDateString('tr-TR', { day: '2-digit', month: '2-digit', year: '2-digit' })
+  const date = new Date(match.date).toLocaleDateString(locale(), { day: '2-digit', month: '2-digit', year: '2-digit' })
   return (
     <li className="grid grid-cols-[4.5rem_1fr_auto_auto] items-center gap-3 px-3 py-2">
       <span className="text-xs text-white/50 tabular-nums">
@@ -72,7 +73,7 @@ export default function FormH2HTab({ match }: { match: Match }) {
 
   if (data.loading) return <LoadingState rows={8} />
   if (data.error) return <ErrorState message={data.error} />
-  if (!data.data) return <EmptyState message="Bu takımlar için geçmiş maç verisi yok." />
+  if (!data.data) return <EmptyState message={t('Bu takımlar için geçmiş maç verisi yok.')} />
   const { homeLast, awayLast, h2h } = data.data
 
   const form = (list: PastMatch[], teamId: string) => (
@@ -95,14 +96,14 @@ export default function FormH2HTab({ match }: { match: Match }) {
   return (
     <div className="space-y-6 p-4">
       {homeLast.length > 0 && (
-        <Section title={`${match.homeTeam} · son 5 maç`} aside={form(homeLast, ids.home)}>
+        <Section title={`${match.homeTeam} · ${t('son 5 maç')}`} aside={form(homeLast, ids.home)}>
           {homeLast.map((m) => (
             <PastMatchRow key={m.id} match={m} teamId={ids.home} />
           ))}
         </Section>
       )}
       {awayLast.length > 0 && (
-        <Section title={`${match.awayTeam} · son 5 maç`} aside={form(awayLast, ids.away)}>
+        <Section title={`${match.awayTeam} · ${t('son 5 maç')}`} aside={form(awayLast, ids.away)}>
           {awayLast.map((m) => (
             <PastMatchRow key={m.id} match={m} teamId={ids.away} />
           ))}
@@ -114,14 +115,14 @@ export default function FormH2HTab({ match }: { match: Match }) {
         </p>
       )}
       <Section
-        title="Aralarındaki maçlar"
+        title={t('Aralarındaki maçlar')}
         aside={
           <span className="text-xs text-white/60 tabular-nums">
             {match.homeTeam} {summary.G} · Beraberlik {summary.B} · {match.awayTeam} {summary.M}
           </span>
         }
       >
-        {h2h.length === 0 ? <li className="px-3 py-4 text-sm text-white/55">Daha önce karşılaşmadılar.</li> : h2h.map((m) => <PastMatchRow key={m.id} match={m} />)}
+        {h2h.length === 0 ? <li className="px-3 py-4 text-sm text-white/55">{t('Daha önce karşılaşmadılar.')}</li> : h2h.map((m) => <PastMatchRow key={m.id} match={m} />)}
       </Section>
     </div>
   )

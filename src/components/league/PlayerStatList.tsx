@@ -4,6 +4,7 @@ import { denseRanks } from '../../lib/league'
 import TeamLogo from '../TeamLogo'
 import PlayerAvatar from '../common/PlayerAvatar'
 import { playerHref } from '../../lib/navigation'
+import { t } from '../../i18n'
 
 interface Props {
   players: PlayerStatEntry[]
@@ -21,8 +22,8 @@ export default function PlayerStatList({ players, valueLabel }: Props) {
   return (
     <div>
       <div className="flex items-center justify-between px-3 pb-2 text-xs text-white/45">
-        <span>Oyuncu</span>
-        <span>{valueLabel}</span>
+        <span>{t('Oyuncu')}</span>
+        <span>{t(valueLabel)}</span>
       </div>
       <ol className="divide-y divide-white/5 rounded-xl bg-white/[0.03]">
         {visible.map((player, i) => (
@@ -53,7 +54,7 @@ export default function PlayerStatList({ players, valueLabel }: Props) {
             onClick={() => setExpanded(true)}
             className="rounded-full bg-white/5 px-5 py-2 text-sm font-semibold ring-1 ring-white/10 ring-inset transition-colors duration-150 hover:bg-white/10"
           >
-            Daha fazla göster
+            {t('Daha fazla göster')}
           </button>
         </div>
       )}

@@ -8,6 +8,7 @@ import CareerTab from '../components/player/CareerTab'
 import TransfersTab from '../components/player/TransfersTab'
 import TrophiesTab from '../components/player/TrophiesTab'
 import { EmptyState, ErrorState, LoadingState } from '../components/match-detail/TabStates'
+import { t } from '../i18n'
 
 interface Props {
   playerId: string
@@ -32,14 +33,14 @@ export default function PlayerPage({ playerId, teamHint = null, onBack }: Props)
         <button
           type="button"
           onClick={onBack}
-          aria-label="Geri"
+          aria-label={t('Geri')}
           className="grid size-10 shrink-0 place-items-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
         >
           <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="size-5">
             <path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <p className="px-2 text-xs font-medium text-accent">Oyuncu</p>
+        <p className="px-2 text-xs font-medium text-accent">{t('Oyuncu')}</p>
       </div>
 
       {profile.loading ? (
@@ -47,7 +48,7 @@ export default function PlayerPage({ playerId, teamHint = null, onBack }: Props)
       ) : profile.error ? (
         <ErrorState message={profile.error} />
       ) : !profile.data ? (
-        <EmptyState message="Bu oyuncu için veri bulunmuyor." />
+        <EmptyState message={t('Bu oyuncu için veri bulunmuyor.')} />
       ) : (
         <>
           <PlayerHeader profile={profile.data} />

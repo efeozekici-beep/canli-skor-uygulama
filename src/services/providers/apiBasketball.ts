@@ -262,7 +262,11 @@ const rawId = (prefixed: string) => prefixed.replace(/^bb-/, '')
 
 // Bir günün bütün basketbol maçları (tek istek). Bugün kısa, diğer günler uzun önbellek.
 export function getGames(date: Date): Promise<Match[]> {
-  const ttl = isSameDay(date, new Date()) ? config.ttl.gamesToday : config.ttl.gamesOtherDay
+  // Bugün ve gece yarısından sonraki ilk saatlerde dün (bitmemiş maçlar): kısa önbellek
+  const now = new Date()
+  const yesterday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1)
+  const fresh = isSameDay(date, now) || (isSameDay(date, yesterday) && now.getHours() < 6)
+  const ttl = fresh ? config.ttl.gamesToday : config.ttl.gamesOtherDay
   return cached(`games:${ymd(date)}`, ttl, async () => {
     const raw = config.useMock
       ? await mockDelay(mockBasketballGames().filter((g) => isSameDay(new Date(g.date), date)))

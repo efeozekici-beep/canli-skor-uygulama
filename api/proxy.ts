@@ -6,6 +6,7 @@
 // Yerelde (npm run dev) aynı kod vite.config.ts içinden çalışır; Redis yoksa hafızada saklar.
 
 import { cacheGet, cacheSet, type Env } from './_lib/cache.js'
+import { clientIp, tooMany } from './_lib/limit.js'
 
 interface ProviderConfig {
   host: string
@@ -43,23 +44,59 @@ function todayIn(timeZone: string) {
   }
 }
 
-// Tarihli maç listesi. Futbolda canlı skor ayrı katmandan (api/live.ts, ESPN) geldiği için bugünün
-// API-Football listesi 10 dk saklanır: kota (günde 100) bütün güne yetsin. Basketbol/NBA'nın canlı
-// katmanı yok, onlarda bugün 1 dk. Dün 30 dk (gece yarısını geçen maçlar), eski günler 6 saat, gelecek 30 dk.
-function dateTtl(q: URLSearchParams, todayTtl = MIN) {
+// Tarihli maç listesi (API-Football, API-Basketball, API-NBA; her birinin kotası günde 100 istek, UTC gece
+// yarısı yenilenir). Canlı skor büyük liglerde ayrı katmandan (api/live.ts: ESPN, EuroLeague; kotasız) gelir.
+// Bugün (ve gece yarısını geçen maçlarıyla dün):
+//  - canlı maç yokken 30 dk
+//  - canlı maç varken kalan kotaya göre: API her cevapta günün kalan istek sayısını söyler (x-ratelimit-requests-
+//    remaining). Diğer işler (maç detayı, puan durumu...) için bir pay ayrılır, kalanı günün kalan saatine
+//    (en fazla 6 saat: akşam maç saatleri) bölünür -> 3 ile 15 dk arası. Kota bolken sık, azalınca seyrek yenilenir.
+// Eski günler 6 saat, gelecek 30 dk.
+// API-Sports maç listesinde hâlâ oynanan maç var mı (gece yarısını geçen maçlar dünün listesinde kalır)
+const LIVE_CODES = new Set(['1H', 'HT', '2H', 'ET', 'BT', 'P', 'LIVE', 'INT', 'SUSP', 'Q1', 'Q2', 'Q3', 'Q4', 'OT'])
+function hasLiveGames(body: unknown) {
+  const list = (body as { response?: unknown[] } | null)?.response
+  if (!Array.isArray(list)) return false
+  return list.some((g) => {
+    const s = g as { status?: { short?: string }; fixture?: { status?: { short?: string } }; game?: { status?: { short?: string } } }
+    const code = s.fixture?.status?.short ?? s.game?.status?.short ?? s.status?.short ?? ''
+    return LIVE_CODES.has(code)
+  })
+}
+
+interface Meta {
+  provider: Provider
+  /** API'nin bildirdiği, bugün kalan istek sayısı (bilinmiyorsa null) */
+  remaining: number | null
+}
+
+// Diğer işlere ayrılan pay: futbolda maç detayı / kadro / istatistik çok istek harcar
+const RESERVE: Partial<Record<Provider, number>> = { football: 35, basketball: 20, nba: 25 }
+
+function liveListTtl(meta?: Meta) {
+  const remaining = meta?.remaining
+  if (remaining === null || remaining === undefined) return 10 * MIN
+  const usable = remaining - (RESERVE[meta!.provider] ?? 20)
+  if (usable <= 0) return 30 * MIN
+  const now = new Date()
+  const untilReset = (Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1) - now.getTime()) / 1000
+  const window = Math.min(untilReset, 6 * HOUR)
+  return Math.round(Math.min(15 * MIN, Math.max(3 * MIN, window / usable)))
+}
+
+function dateTtl(q: URLSearchParams, body?: unknown, meta?: Meta) {
   const date = q.get('date') ?? ''
   const today = todayIn(q.get('timezone') ?? 'UTC')
   const yesterday = new Date(Date.parse(`${today}T00:00:00Z`) - DAY * 1000).toISOString().slice(0, 10)
-  if (date === today) return todayTtl
-  if (date === yesterday) return 30 * MIN
+  if (date === today || date === yesterday) return hasLiveGames(body) ? liveListTtl(meta) : 30 * MIN
   return date < today ? 6 * HOUR : 30 * MIN
 }
 
 // Bitmiş (veya iptal/ertelenmiş) futbol maçı durumları: veri artık değişmez
 const FOOTBALL_DONE = new Set(['FT', 'AET', 'PEN', 'PST', 'CANC', 'ABD', 'AWD', 'WO'])
 
-function footballFixturesTtl(q: URLSearchParams, body: unknown) {
-  if (q.has('date')) return dateTtl(q, 10 * MIN)
+function footballFixturesTtl(q: URLSearchParams, body: unknown, meta?: Meta) {
+  if (q.has('date')) return dateTtl(q, body, meta)
   if (q.has('id')) {
     // Maç detayı: bittiyse 7 gün, başlamadıysa 5 dk, canlıysa 1 dk
     const status = (body as { response?: { fixture?: { status?: { short?: string } } }[] }).response?.[0]?.fixture?.status?.short
@@ -77,7 +114,7 @@ function espnDateTtl(q: URLSearchParams) {
   return date < today ? 6 * HOUR : HOUR
 }
 
-type Rule = (q: URLSearchParams, body: unknown) => number
+type Rule = (q: URLSearchParams, body: unknown, meta?: Meta) => number
 const fixed = (seconds: number): Rule => () => seconds
 
 // Sadece burada listelenen uç noktalara izin verilir: backend herkesin kullanabileceği açık bir proxy olmasın
@@ -98,6 +135,8 @@ const PATTERNS: Record<Provider, [RegExp, Rule][]> = {
     // Takım sayfası: ligdeki takımlar (1 gün) ve takımın maç takvimi (10 dk)
     [/^\/apis\/site\/v2\/sports\/soccer\/[a-z0-9.]+\/teams$/, fixed(DAY)],
     [/^\/apis\/site\/v2\/sports\/soccer\/[a-z0-9.]+\/teams\/\d+\/schedule$/, fixed(10 * MIN)],
+    // Takım kadrosu + oyuncuların bu sezonki lig istatistikleri (maç, gol, asist, kart) — 3 saat
+    [/^\/apis\/site\/v2\/sports\/soccer\/[a-z0-9.]+\/teams\/\d+\/roster$/, fixed(3 * HOUR)],
     // Oyuncu sayfası: oyuncu araması (7 gün) ve kulüp / lig bazında kariyer istatistikleri (1 gün)
     [/^\/apis\/search\/v2$/, fixed(7 * DAY)],
     [/^\/apis\/common\/v3\/sports\/soccer\/athletes\/\d+\/stats$/, fixed(DAY)],
@@ -144,13 +183,13 @@ const RULES: Record<Provider, Record<string, Rule>> = {
     '/players/squads': fixed(DAY), // takım sayfası: güncel kadro
   },
   basketball: {
-    '/games': (q) => dateTtl(q),
+    '/games': (q, body, meta) => dateTtl(q, body, meta),
     '/games/statistics/teams': fixed(2 * MIN),
     '/games/statistics/players': fixed(2 * MIN),
     '/standings': fixed(HOUR),
   },
   nba: {
-    '/games': (q) => dateTtl(q), // API-NBA tarihi UTC'dir (timezone parametresi yok -> UTC)
+    '/games': (q, body, meta) => dateTtl(q, body, meta), // API-NBA tarihi UTC'dir (timezone parametresi yok -> UTC)
     '/players/statistics': fixed(2 * MIN),
     '/players': fixed(7 * DAY),
   },
@@ -173,7 +212,7 @@ function errorKind(body: unknown): 'none' | 'plan' | 'other' {
 const json = (status: number, message: string) =>
   new Response(JSON.stringify({ message }), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } })
 
-function send(body: string, ttl: number, cache: 'HIT' | 'MISS') {
+function send(body: string, ttl: number, cache: 'HIT' | 'MISS' | 'STALE') {
   return new Response(body, {
     status: 200,
     headers: {
@@ -204,7 +243,16 @@ function parseTarget(url: URL) {
   return { provider: provider as Provider, path, query }
 }
 
-type Result = { ok: true; body: string; ttl: number } | { ok: false; status: number; message: string }
+type Result = { ok: true; body: string; ttl: number; stale?: boolean } | { ok: false; status: number; message: string }
+
+// Maç listelerinin (tarihli istekler) son başarılı cevabı 2 gün yedekte tutulur: API kota / hata verirse
+// boş liste yerine bu gösterilir (cevapta x-cache: STALE). 2 dk sonra tekrar denenir.
+const BACKUP_TTL = 2 * DAY
+const backupKey = (cacheKey: string) => `${cacheKey}:backup`
+async function fromBackup(env: Env, cacheKey: string): Promise<Result | null> {
+  const b = await cacheGet(env, backupKey(cacheKey))
+  return b ? { ok: true, body: b.body, ttl: 2 * MIN, stale: true } : null
+}
 
 // Aynı anda gelen aynı istekler tek API çağrısını paylaşır
 const inflight = new Map<string, Promise<Result>>()
@@ -227,6 +275,10 @@ async function fetchUpstream(env: Env, provider: Provider, path: string, rule: R
       // (dakikada 10 istek sınırı boşa harcanmasın). 429 (çok istek) ve sunucu hataları saklanmaz.
       const permanent = res.status === 403 || res.status === 404
       if (permanent) await cacheSet(env, `${cacheKey}:error`, String(res.status), HOUR)
+      else if (query.has('date')) {
+        const backup = await fromBackup(env, cacheKey)
+        if (backup) return backup
+      }
       return { ok: false, status: permanent ? res.status : 502, message: `${provider} HTTP ${res.status}` }
     }
     let body = await res.text()
@@ -238,11 +290,23 @@ async function fetchUpstream(env: Env, provider: Provider, path: string, rule: R
     const parsed: unknown = JSON.parse(body)
     // API-Sports plan hatası kalıcıdır (6 saat sakla, kota harcanmasın); kota/anahtar hatası saklanmaz
     const kind = config.apiSports ? errorKind(parsed) : 'none'
-    const ttl = kind === 'none' ? rule(query, parsed) : kind === 'plan' ? 6 * HOUR : 0
+    // Kota / anahtar hatası (plan dışı): maç listesinde yedek varsa o gösterilir
+    if (kind === 'other' && query.has('date')) {
+      const backup = await fromBackup(env, cacheKey)
+      if (backup) return backup
+    }
+    const left = Number(res.headers.get('x-ratelimit-requests-remaining'))
+    const meta: Meta = { provider, remaining: res.headers.has('x-ratelimit-requests-remaining') && Number.isFinite(left) ? left : null }
+    const ttl = kind === 'none' ? rule(query, parsed, meta) : kind === 'plan' ? 6 * HOUR : 0
     if (ttl > 0) await cacheSet(env, cacheKey, body, ttl)
+    if (kind === 'none' && query.has('date')) await cacheSet(env, backupKey(cacheKey), body, BACKUP_TTL)
     return { ok: true, body, ttl }
   } catch (err) {
     console.error(`${provider} isteği başarısız:`, err)
+    if (query.has('date')) {
+      const backup = await fromBackup(env, cacheKey)
+      if (backup) return backup
+    }
     return { ok: false, status: 502, message: `${provider} şu an yanıt vermiyor.` }
   }
 }
@@ -266,11 +330,14 @@ export async function handleApiRequest(request: Request, env: Env): Promise<Resp
 
   let pending = inflight.get(cacheKey)
   if (!pending) {
+    // Önbellekte olmayan (kaynağa gidecek) istekler IP başına dakikada 60 ile sınırlı: biri farklı tarih /
+    // oyuncu isteyerek önbelleği atlatıp günlük kotayı bitiremesin
+    if (await tooMany(env, `api:${clientIp(request)}`, 60, 60)) return json(429, 'Çok fazla istek, biraz bekle.')
     pending = fetchUpstream(env, provider, path, rule, query, cacheKey).finally(() => inflight.delete(cacheKey))
     inflight.set(cacheKey, pending)
   }
   const result = await pending
-  return result.ok ? send(result.body, result.ttl, 'MISS') : json(result.status, result.message)
+  return result.ok ? send(result.body, result.ttl, result.stale ? 'STALE' : 'MISS') : json(result.status, result.message)
 }
 
 // Vercel bu fonksiyonu GET /api/proxy için çalıştırır (vercel.json /api/football/... adreslerini buraya yönlendirir)

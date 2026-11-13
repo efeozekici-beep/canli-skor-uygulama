@@ -1,3 +1,5 @@
+import { t } from '../../i18n'
+
 interface Props<T extends string> {
   tabs: { id: T; label: string }[]
   active: T
@@ -11,7 +13,7 @@ interface Props<T extends string> {
 export default function LeagueTabs<T extends string>({ tabs, active, onChange, label, variant = 'underline' }: Props<T>) {
   if (variant === 'pill') {
     return (
-      <div role="tablist" aria-label={label} className="no-scrollbar flex gap-2 overflow-x-auto">
+      <div role="tablist" aria-label={t(label)} className="no-scrollbar flex gap-2 overflow-x-auto">
         {tabs.map((tab) => {
           const isActive = tab.id === active
           return (
@@ -25,7 +27,7 @@ export default function LeagueTabs<T extends string>({ tabs, active, onChange, l
                 isActive ? 'bg-white text-pitch-950 ring-white' : 'bg-white/5 text-white ring-white/10 hover:bg-white/10'
               }`}
             >
-              {tab.label}
+              {t(tab.label)}
             </button>
           )
         })}
@@ -34,7 +36,7 @@ export default function LeagueTabs<T extends string>({ tabs, active, onChange, l
   }
 
   return (
-    <div role="tablist" aria-label={label} className="no-scrollbar flex overflow-x-auto border-b border-white/10 px-2">
+    <div role="tablist" aria-label={t(label)} className="no-scrollbar flex overflow-x-auto border-b border-white/10 px-2">
       {tabs.map((tab) => {
         const isActive = tab.id === active
         return (
@@ -48,7 +50,7 @@ export default function LeagueTabs<T extends string>({ tabs, active, onChange, l
               isActive ? 'text-white' : 'text-white/50 hover:text-white/80'
             }`}
           >
-            {tab.label}
+            {t(tab.label)}
             {isActive && <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-accent" />}
           </button>
         )

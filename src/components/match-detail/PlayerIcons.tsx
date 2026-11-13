@@ -1,5 +1,6 @@
 import type { PlayerMatchStats } from '../../types/playerStats'
 import { Ball, Card } from './EventIcon'
+import { t } from '../../i18n'
 
 // Oyuncunun maçtaki gol, asist, kart ve değişiklik ikonları. Veri yoksa hiçbir şey çizmez.
 export default function PlayerIcons({ stats }: { stats?: PlayerMatchStats }) {
@@ -16,7 +17,7 @@ export default function PlayerIcons({ stats }: { stats?: PlayerMatchStats }) {
         <Ball key={`og${i}`} className="size-3" own />
       ))}
       {assists > 0 && (
-        <span title="Asist" className="rounded-sm bg-white/90 px-0.5 text-[8px] leading-3 font-black text-pitch-950">
+        <span title={t('Asist')} className="rounded-sm bg-white/90 px-0.5 text-[8px] leading-3 font-black text-pitch-950">
           A{assists > 1 ? assists : ''}
         </span>
       )}
@@ -28,7 +29,7 @@ export default function PlayerIcons({ stats }: { stats?: PlayerMatchStats }) {
         </span>
       )}
       {subOut !== null && (
-        <span title={`${subOut}' oyundan çıktı`} className="text-[9px] leading-3 font-bold text-red-400">
+        <span title={t("{min}' oyundan çıktı", { min: subOut })} className="text-[9px] leading-3 font-bold text-red-400">
           ▼{subOut}'
         </span>
       )}

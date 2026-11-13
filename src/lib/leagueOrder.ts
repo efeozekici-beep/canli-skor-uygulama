@@ -8,65 +8,8 @@ import type { Match } from '../types/match'
 //     ligleri ülkesinin sonunda
 //  5. Sıralamada olmayan ülkeler: alfabetik
 
-// API'nin İngilizce ülke adlarını Türkçe göster (listede bölge adı olarak görünür)
-export const COUNTRY_TR: Record<string, string> = {
-  World: 'Dünya',
-  Europe: 'Avrupa',
-  Turkey: 'Türkiye',
-  England: 'İngiltere',
-  Spain: 'İspanya',
-  Italy: 'İtalya',
-  Germany: 'Almanya',
-  France: 'Fransa',
-  Netherlands: 'Hollanda',
-  Portugal: 'Portekiz',
-  Belgium: 'Belçika',
-  Scotland: 'İskoçya',
-  Austria: 'Avusturya',
-  Switzerland: 'İsviçre',
-  Greece: 'Yunanistan',
-  Denmark: 'Danimarka',
-  'Czech-Republic': 'Çekya',
-  'Czech Republic': 'Çekya',
-  Norway: 'Norveç',
-  Poland: 'Polonya',
-  Croatia: 'Hırvatistan',
-  Serbia: 'Sırbistan',
-  Ukraine: 'Ukrayna',
-  Sweden: 'İsveç',
-  Israel: 'İsrail',
-  Cyprus: 'Kıbrıs',
-  Russia: 'Rusya',
-  Romania: 'Romanya',
-  Hungary: 'Macaristan',
-  Slovenia: 'Slovenya',
-  Slovakia: 'Slovakya',
-  Bulgaria: 'Bulgaristan',
-  Lithuania: 'Litvanya',
-  Finland: 'Finlandiya',
-  Ireland: 'İrlanda',
-  Wales: 'Galler',
-  Azerbaijan: 'Azerbaycan',
-  Georgia: 'Gürcistan',
-  Brazil: 'Brezilya',
-  Argentina: 'Arjantin',
-  USA: 'ABD',
-  Mexico: 'Meksika',
-  'Saudi-Arabia': 'Suudi Arabistan',
-  'Saudi Arabia': 'Suudi Arabistan',
-  Japan: 'Japonya',
-  'South-Korea': 'Güney Kore',
-  'South Korea': 'Güney Kore',
-  China: 'Çin',
-  Australia: 'Avustralya',
-  Egypt: 'Mısır',
-  Morocco: 'Fas',
-  Qatar: 'Katar',
-  'United-Arab-Emirates': 'BAE',
-  Colombia: 'Kolombiya',
-  Chile: 'Şili',
-  Uruguay: 'Uruguay',
-}
+// API'nin İngilizce ülke adlarının Türkçesi: src/lib/countries.ts
+export { COUNTRY_TR } from './countries'
 
 // ---------- Futbol ----------
 const FOOTBALL_PINNED = 203 // Süper Lig
@@ -142,6 +85,8 @@ function rankKey(m: Match): [number, number, number, number, string] {
 }
 
 export function compareLeagues(a: Match, b: Match) {
+  // Diğer sporların listesi sunucuda (api/sports.ts) sıralanmış gelir: o sıra korunur (sort kararlıdır)
+  if (a.sport !== 'football' && a.sport !== 'basketball') return 0
   const ka = rankKey(a)
   const kb = rankKey(b)
   for (let i = 0; i < 4; i++) if (ka[i] !== kb[i]) return (ka[i] as number) - (kb[i] as number)

@@ -10,8 +10,10 @@ import BoxScoreTab from './BoxScoreTab'
 import BasketballStatsTab from './BasketballStatsTab'
 import BasketballStandingsTab from './BasketballStandingsTab'
 import { EmptyState, LoadingState } from '../match-detail/TabStates'
+import { locale, t } from '../../i18n'
+import MatchChat from '../match-detail/MatchChat'
 
-type Tab = 'summary' | 'stats' | 'box' | 'standings'
+type Tab = 'summary' | 'chat' | 'stats' | 'box' | 'standings'
 
 interface Props {
   matchId: string
@@ -33,6 +35,7 @@ export default function BasketballDetailPanel({ matchId, onClose }: Props) {
     { id: 'stats', label: 'İstatistikler' },
     { id: 'box', label: m && isNbaMatch(m) ? 'Box Score' : 'Oyuncular' },
     { id: 'standings', label: 'Puan durumu' },
+    { id: 'chat', label: 'Sohbet' },
   ]
 
   return (
@@ -41,7 +44,7 @@ export default function BasketballDetailPanel({ matchId, onClose }: Props) {
         <button
           type="button"
           onClick={onClose}
-          aria-label="Geri"
+          aria-label={t('Geri')}
           className="grid size-10 shrink-0 place-items-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
         >
           <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="size-5">
@@ -54,28 +57,28 @@ export default function BasketballDetailPanel({ matchId, onClose }: Props) {
       {match.loading ? (
         <LoadingState rows={6} />
       ) : !m ? (
-        <EmptyState message="Maç bulunamadı." />
+        <EmptyState message={t('Maç bulunamadı.')} />
       ) : (
         <>
           <MatchHeader match={m} events={null} isFavorite={favorites.has(m.id)} onToggleFavorite={() => toggleFavorite(m.id)} />
-          <LeagueTabs tabs={tabs} active={tab} onChange={setTab} label="Maç detayı" />
+          <LeagueTabs tabs={tabs} active={tab} onChange={setTab} label={t('Maç detayı')} />
           <div role="tabpanel" className="flex-1">
             {tab === 'summary' && (
               <div className="space-y-5 p-4 sm:p-5">
                 {m.status === 'upcoming' ? (
-                  <EmptyState message="Maç henüz başlamadı." />
+                  <EmptyState message={t('Maç henüz başlamadı.')} />
                 ) : (
                   <QuarterScores match={m} />
                 )}
                 <dl className="grid grid-cols-2 gap-2 text-sm">
                   <div className="rounded-lg bg-white/5 px-3 py-2">
-                    <dt className="text-xs text-white/50">Lig</dt>
+                    <dt className="text-xs text-white/50">{t('Lig')}</dt>
                     <dd className="truncate font-semibold">{m.leagueName}</dd>
                   </div>
                   <div className="rounded-lg bg-white/5 px-3 py-2">
-                    <dt className="text-xs text-white/50">Başlama</dt>
+                    <dt className="text-xs text-white/50">{t('Başlama')}</dt>
                     <dd className="truncate font-semibold">
-                      {new Date(m.startTime).toLocaleString('tr-TR', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                      {new Date(m.startTime).toLocaleString(locale(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     </dd>
                   </div>
                 </dl>
@@ -84,6 +87,7 @@ export default function BasketballDetailPanel({ matchId, onClose }: Props) {
             {tab === 'stats' && <BasketballStatsTab match={m} />}
             {tab === 'box' && <BoxScoreTab match={m} />}
             {tab === 'standings' && <BasketballStandingsTab match={m} />}
+            {tab === 'chat' && <MatchChat matchId={m.id} />}
           </div>
         </>
       )}

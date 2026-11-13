@@ -7,6 +7,7 @@ import { EmptyState, ErrorState, LoadingState } from '../match-detail/TabStates'
 import { sameTeamName } from '../../lib/team'
 import { basketballTeamHref } from '../../lib/navigation'
 import { hasBasketballTeamPage } from '../../services/basketballTeamService'
+import { ab, t } from '../../i18n'
 
 // Bölge rengi: play-off yeşil, play-in sarı, diğerleri genel kurala göre
 const colorFor = (description: string, index: number) =>
@@ -14,7 +15,7 @@ const colorFor = (description: string, index: number) =>
 
 // Basketbol puan durumu (API-Basketball): beraberlik yok; G, M, galibiyet yüzdesi, atılan/yenilen sayı
 export default function BasketballStandingsTab({ match }: { match: Match }) {
-  if (!match.basketball?.season) return <EmptyState message="Bu lig için puan durumu bulunmuyor." />
+  if (!match.basketball?.season) return <EmptyState message={t('Bu lig için puan durumu bulunmuyor.')} />
   return (
     <BasketballStandingsTable
       leagueId={match.leagueId}
@@ -36,7 +37,7 @@ export function BasketballStandingsTable({ leagueId, season, highlightIds = [], 
 
   if (standings.loading) return <LoadingState rows={8} />
   if (standings.error) return <ErrorState message={standings.error} />
-  if (!standings.data) return <EmptyState message="Bu lig için puan durumu bulunmuyor." />
+  if (!standings.data) return <EmptyState message={t('Bu lig için puan durumu bulunmuyor.')} />
 
   const highlighted = new Set(highlightIds)
   const descriptions = [...new Set(standings.data.groups.flatMap((g) => g.rows.map((r) => r.description)).filter((d): d is string => d !== null))]
@@ -46,17 +47,17 @@ export function BasketballStandingsTable({ leagueId, season, highlightIds = [], 
     <div className="space-y-5 p-3 sm:p-5">
       {standings.data.groups.map((group) => (
         <section key={group.name}>
-          {standings.data!.groups.length > 1 && <h3 className="mb-2 px-1 text-sm font-semibold text-white/80">{group.name}</h3>}
+          {standings.data!.groups.length > 1 && <h3 className="mb-2 px-1 text-sm font-semibold text-white/80">{t(group.name)}</h3>}
           <table className="w-full text-sm tabular-nums">
             <thead className="text-xs text-white/45">
               <tr>
                 <th className={`${th} w-10`}>#</th>
-                <th className={`${th} text-left`}>Takım</th>
-                <th className={th} title="Oynanan">O</th>
-                <th className={th} title="Galibiyet">G</th>
-                <th className={th} title="Mağlubiyet">M</th>
-                <th className={th} title="Galibiyet yüzdesi">%</th>
-                <th className={`${th} hidden sm:table-cell`} title="Atılan : yenilen sayı">Sayı</th>
+                <th className={`${th} text-left`}>{t('Takım')}</th>
+                <th className={th} title={t('Oynanan')}>{ab('O', 'P', 'Sp')}</th>
+                <th className={th} title={t('Galibiyet')}>{ab('G', 'W', 'S')}</th>
+                <th className={th} title={t('Mağlubiyet')}>{ab('M', 'L', 'N')}</th>
+                <th className={th} title={t('Galibiyet yüzdesi')}>%</th>
+                <th className={`${th} hidden sm:table-cell`} title={t('Atılan : yenilen sayı')}>{t('Sayı')}</th>
               </tr>
             </thead>
             <tbody>

@@ -9,6 +9,7 @@ import GoalScore from '../common/GoalScore'
 import { useGoal } from '../../hooks/useGoal'
 import { basketballTeamHref, teamHref } from '../../lib/navigation'
 import { hasBasketballTeamPage } from '../../services/basketballTeamService'
+import { locale, t } from '../../i18n'
 
 interface Props {
   match: Match
@@ -31,12 +32,12 @@ function scorers(events: MatchEvent[], side: Side) {
 }
 
 function statusText(match: Match) {
-  if (match.status === 'live') return { text: `Canlı ${match.statusLabel ?? `${match.minute}'`}`, className: 'text-red-400' }
+  if (match.status === 'live') return { text: `${t('Canlı')} ${match.statusLabel ? t(match.statusLabel) : `${match.minute}'`}`, className: 'text-red-400' }
   if (match.status === 'finished') {
     const extra = match.statusLabel && match.statusLabel !== 'MS' ? ` (${match.statusLabel})` : ''
     return { text: `Bitti${extra}`, className: 'text-white/60' }
   }
-  const day = new Date(match.startTime).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short' })
+  const day = new Date(match.startTime).toLocaleDateString(locale(), { day: 'numeric', month: 'short' })
   return { text: `${day} · ${formatTime(match.startTime)}`, className: 'text-white/60' }
 }
 
@@ -54,7 +55,7 @@ export default function MatchHeader({ match, events, isFavorite, onToggleFavorit
     <button
       type="button"
       aria-pressed={isFavorite}
-      aria-label={isFavorite ? 'Maçı favorilerden çıkar' : 'Maçı favorilere ekle'}
+      aria-label={isFavorite ? t('Maçı favorilerden çıkar') : t('Maçı favorilere ekle')}
       onClick={onToggleFavorite}
       className={`grid size-9 place-items-center rounded-full transition-[color,transform] duration-150 ease-out active:scale-[0.9] ${
         isFavorite ? 'text-amber-400' : 'text-white/60 hover:text-white'
@@ -131,7 +132,7 @@ export default function MatchHeader({ match, events, isFavorite, onToggleFavorit
             href={fullPageHref}
             className="rounded-full bg-accent px-5 py-2 text-sm font-bold text-pitch-950 transition-[background-color,transform] duration-150 ease-out hover:bg-accent/90 active:scale-[0.97]"
           >
-            Tam sayfa görünümü
+            {t('Tam sayfa görünümü')}
           </a>
         </div>
       )}

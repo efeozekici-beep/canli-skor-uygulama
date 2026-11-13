@@ -2,6 +2,7 @@ import type { Match } from '../../types/match'
 import type { StatItem } from '../../types/matchDetail'
 import { TEAM_COLORS } from '../../lib/chartColors'
 import TeamLogo from '../TeamLogo'
+import { t } from '../../i18n'
 
 // İki taraflı istatistikler (futbol ve basketbol ortak). Renk takımı gösterir (ev sahibi yeşil, deplasman mavi);
 // önde olan tarafın çubuğu tam, geride olanınki soluk. Rakamlar her zaman yazılı (renk tek başına bilgi taşımaz).
@@ -18,10 +19,10 @@ const leaderOf = (item: StatItem): Side | null => (item.home === item.away ? nul
 function Possession({ item }: { item: StatItem }) {
   const total = item.home + item.away || 1
   return (
-    <section aria-label={`${item.label}: ${item.home}% - ${item.away}%`}>
+    <section aria-label={`${t(item.label)}: ${item.home}% - ${item.away}%`}>
       <div className="mb-1.5 flex items-baseline justify-between tabular-nums">
         <span className="text-2xl font-bold">{format(item.home, '%')}</span>
-        <span className="text-xs text-white/60">{item.label}</span>
+        <span className="text-xs text-white/60">{t(item.label)}</span>
         <span className="text-2xl font-bold">{format(item.away, '%')}</span>
       </div>
       {/* İki parça arasında 2px boşluk */}
@@ -43,7 +44,7 @@ function HeroTile({ item }: { item: StatItem }) {
   )
   return (
     <div className="rounded-xl bg-white/[0.04] px-3 py-2.5 text-center">
-      <p className="truncate text-[11px] text-white/55">{item.label}</p>
+      <p className="truncate text-[11px] text-white/55">{t(item.label)}</p>
       <p className="mt-1 flex items-center justify-center gap-3 text-lg font-bold tabular-nums">
         {value('home')}
         <span className="text-white/25">–</span>
@@ -64,7 +65,7 @@ function BarRow({ item }: { item: StatItem }) {
     <li>
       <div className="flex items-center justify-between text-sm tabular-nums">
         <span className={valueClass('home')}>{format(item.home, item.unit)}</span>
-        <span className="text-white/70">{item.label}</span>
+        <span className="text-white/70">{t(item.label)}</span>
         <span className={valueClass('away')}>{format(item.away, item.unit)}</span>
       </div>
       <div className="mt-1.5 grid grid-cols-2 gap-1.5">

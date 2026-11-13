@@ -4,6 +4,7 @@ import { useSearch } from '../../hooks/useSearch'
 import { optionId, selectableResults } from '../../lib/search'
 import { navigateTo } from '../../lib/navigation'
 import SearchResults from './SearchResults'
+import { t } from '../../i18n'
 
 const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 
@@ -79,8 +80,8 @@ export default function SearchModal() {
         onFocus={() => setOpen(true)}
         onBlur={() => setOpen(false)}
         onKeyDown={onKeyDown}
-        placeholder="Takım, lig veya oyuncu ara…"
-        aria-label="Takım, lig veya oyuncu ara"
+        placeholder={t('Takım, lig veya oyuncu ara…')}
+        aria-label={t('Takım, lig veya oyuncu ara')}
         role="combobox"
         aria-expanded={open}
         aria-controls={listId}

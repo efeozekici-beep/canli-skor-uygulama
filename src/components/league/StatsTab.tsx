@@ -5,6 +5,7 @@ import { useDetailData } from '../../hooks/useDetailData'
 import LeagueTabs from './LeagueTabs'
 import PlayerStatList from './PlayerStatList'
 import { EmptyState, ErrorState, LoadingState } from '../match-detail/TabStates'
+import { t } from '../../i18n'
 
 interface Props {
   leagueId: string
@@ -26,13 +27,13 @@ export default function StatsTab({ leagueId, season }: Props) {
 
   return (
     <div className="space-y-4 p-3 sm:p-5">
-      <LeagueTabs tabs={KINDS} active={kind} onChange={setKind} label="İstatistik türü" variant="pill" />
+      <LeagueTabs tabs={KINDS} active={kind} onChange={setKind} label={t('İstatistik türü')} variant="pill" />
       {data.loading ? (
         <LoadingState rows={8} />
       ) : data.error ? (
         <ErrorState message={data.error} />
       ) : !data.data || data.data.length === 0 ? (
-        <EmptyState message="Bu lig için istatistik bulunmuyor." />
+        <EmptyState message={t('Bu lig için istatistik bulunmuyor.')} />
       ) : (
         // key: alt sekme değişince "Daha fazla göster" sıfırlansın
         <PlayerStatList key={kind} players={data.data} valueLabel={current.valueLabel} />

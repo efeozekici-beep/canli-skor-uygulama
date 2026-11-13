@@ -59,3 +59,16 @@ export async function cacheSet(env: Env, key: string, body: string, ttl: number)
     console.error('Redis yazılamadı:', err)
   }
 }
+
+/** Redis'e doğrudan komut (sohbet gibi liste / sayaç işleri için). Redis tanımlı değilse null döner (yerel hafıza kullanılır). */
+export async function redisCommand(env: Env, command: (string | number)[]): Promise<unknown> {
+  const cfg = redisConfig(env)
+  if (!cfg) return null
+  return redis(cfg, command)
+}
+
+export const hasRedis = (env: Env) => redisConfig(env) !== null
+
+/** Kullanıcı verisi (hesaplar, oturumlar, sohbet) için anahtar öneki: yerel geliştirme canlı siteyle aynı
+ *  Redis'i kullanır, karışmasın diye yerelde "dev:" eklenir (Vercel'de VERCEL=1 tanımlıdır). API önbelleği ortaktır. */
+export const userScope = (env: Env) => (env.VERCEL ? '' : 'dev:')

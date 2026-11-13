@@ -9,6 +9,7 @@ import LeagueGroup from './LeagueGroup'
 import MatchRow from './MatchRow'
 import LeagueLogo from './common/LeagueLogo'
 import { compareLeagues } from '../lib/leagueOrder'
+import { t, tn } from '../i18n'
 
 interface Props {
   sport: string
@@ -25,8 +26,6 @@ interface League {
   featured: boolean
   matches: Match[]
 }
-
-const FAVORITES_GROUP = 'favorites'
 
 function byKickoff(a: Match, b: Match) {
   return a.startTime.localeCompare(b.startTime) || a.id.localeCompare(b.id)
@@ -52,7 +51,8 @@ const countLive = (matches: Match[]) => matches.filter((m) => m.status === 'live
 
 // Lig sayfasının adresi: #/lig/2 (futbol), #/lig/bb-12 (basketbol). ESPN'den gelen, bizde sayfası olmayan
 // ligler ("espn-l-…") bağlantısız.
-const leagueHref = (leagueId: string) => (leagueId.startsWith('espn-l-') ? undefined : `#/lig/${encodeURIComponent(leagueId)}`)
+// Lig sayfası sadece futbol (sayı id) ve basketbol ("bb-") liglerinde var
+const leagueHref = (leagueId: string) => (/^(\d+|bb-\d+)$/.test(leagueId) ? `#/lig/${encodeURIComponent(leagueId)}` : undefined)
 
 function FavoritesIcon() {
   return (
@@ -68,8 +68,6 @@ export default function ScoreScreen({ sport, sportLabel, selectedId, onSelectMat
   const [today] = useState(() => startOfDay(new Date()))
   const [dayOffset, setDayOffset] = useState(0)
   const [filter, setFilter] = useState<MatchStatus | null>(null)
-  // Groups the user flipped away from their default (featured leagues open, the rest closed).
-  const [toggled, setToggled] = useState<Set<string>>(() => new Set())
 
   const date = addDays(today, dayOffset)
   const { matches, loading, error } = useMatches(sport, date)
@@ -82,14 +80,6 @@ export default function ScoreScreen({ sport, sportLabel, selectedId, onSelectMat
   const leagues = groupByLeague(visible.filter((m) => !favorites.has(m.id)))
   const showFavoritesGroup = favoriteMatches.length > 0
 
-  const isCollapsed = (id: string, openByDefault: boolean) => toggled.has(id) === openByDefault
-  const toggleGroup = (id: string) =>
-    setToggled((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
 
   const renderRows = (list: Match[]) =>
     list.map((m) => (
@@ -104,11 +94,11 @@ export default function ScoreScreen({ sport, sportLabel, selectedId, onSelectMat
     ))
 
   let emptyMessage: string | null = null
-  if (loading) emptyMessage = 'Maçlar yükleniyor…'
-  else if (error) emptyMessage = error
+  if (loading) emptyMessage = t('Maçlar yükleniyor…')
+  else if (error) emptyMessage = t(error)
   else if (leagues.length === 0 && !showFavoritesGroup) {
-    if (matches.length === 0) emptyMessage = `Bu tarihte ${sportLabel} maçı yok.`
-    else emptyMessage = 'Bu filtreye uyan maç yok.'
+    if (matches.length === 0) emptyMessage = t('Bu tarihte {sport} maçı yok.', { sport: sportLabel })
+    else emptyMessage = t('Bu filtreye uyan maç yok.')
   }
 
   return (
@@ -118,7 +108,7 @@ export default function ScoreScreen({ sport, sportLabel, selectedId, onSelectMat
       <div className="flex flex-wrap items-center justify-between gap-3 px-2 pb-3">
         <StatusFilters active={filter} liveCount={countLive(matches)} onChange={setFilter} />
         <DateSwitcher
-          label={dayLabel(dayOffset, date)}
+          label={dayLabel(Math.round((startOfDay(date).getTime() - startOfDay(new Date()).getTime()) / 86_400_000), date)}
           onPrev={() => setDayOffset((d) => d - 1)}
           onNext={() => setDayOffset((d) => d + 1)}
         />
@@ -128,12 +118,10 @@ export default function ScoreScreen({ sport, sportLabel, selectedId, onSelectMat
         {showFavoritesGroup && (
           <LeagueGroup
             title="Favoriler"
-            subtitle={`${favoriteMatches.length} maç`}
+            subtitle={tn(favoriteMatches.length, '{n} maç', '{n} maç')}
             icon={<FavoritesIcon />}
             liveCount={countLive(favoriteMatches)}
             total={favoriteMatches.length}
-            collapsed={isCollapsed(FAVORITES_GROUP, true)}
-            onToggle={() => toggleGroup(FAVORITES_GROUP)}
           >
             {/* Favoriler farklı liglerden olabilir: her ligin küçük başlığı da lig sayfasına gider */}
             {groupByLeague(favoriteMatches).map((league) => {
@@ -165,12 +153,10 @@ export default function ScoreScreen({ sport, sportLabel, selectedId, onSelectMat
           <LeagueGroup
             key={league.id}
             title={league.name}
-            subtitle={league.region}
+            subtitle={t(league.region)}
             icon={<LeagueLogo name={league.name} logo={league.logo} />}
             liveCount={countLive(league.matches)}
             total={league.matches.length}
-            collapsed={isCollapsed(league.id, league.featured)}
-            onToggle={() => toggleGroup(league.id)}
             href={leagueHref(league.id)}
           >
             {renderRows(league.matches)}

@@ -4,6 +4,8 @@ import type { NbaPlayerLine } from '../../types/basketball'
 import { getBasketballCareer, getNbaPlayerProfile, type CareerSource } from '../../services/basketballService'
 import { useDetailData } from '../../hooks/useDetailData'
 import PlayerAvatar from '../common/PlayerAvatar'
+import { ab, t } from '../../i18n'
+import { locale } from '../../i18n'
 
 interface Props {
   line: NbaPlayerLine
@@ -41,7 +43,7 @@ export default function NbaPlayerPopover({ line, teamName, photo, showProfile, c
         ['Forma', p.jersey !== null ? `#${p.jersey}` : null],
         ['Boy', p.height],
         ['Kilo', p.weight],
-        ['Doğum', p.birthDate ? new Date(p.birthDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : null],
+        ['Doğum', p.birthDate ? new Date(p.birthDate).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' }) : null],
         ['Ülke', p.country],
         ['Üniversite', p.college],
         ['NBA\'de ilk yıl', p.nbaStart !== null ? String(p.nbaStart) : null],
@@ -81,7 +83,7 @@ export default function NbaPlayerPopover({ line, teamName, photo, showProfile, c
             ['Asist', line.assists],
           ].map(([label, value]) => (
             <div key={label} className="rounded-lg bg-white/5 py-2">
-              <dt className="text-xs text-white/50">{label}</dt>
+              <dt className="text-xs text-white/50">{t(String(label))}</dt>
               <dd className="text-xl font-bold tabular-nums">{value}</dd>
             </div>
           ))}
@@ -94,21 +96,21 @@ export default function NbaPlayerPopover({ line, teamName, photo, showProfile, c
         {/* Kariyer: sezon sezon maç başı ortalamalar (yeniden eskiye) */}
         {careerSource && (
           <div className="mt-4 border-t border-white/10 pt-3">
-            <h4 className="mb-2 text-sm font-semibold text-white/80">Kariyer (maç başı ortalama)</h4>
+            <h4 className="mb-2 text-sm font-semibold text-white/80">{t('Kariyer (maç başı ortalama)')}</h4>
             {career.loading ? (
               <div className="h-24 animate-pulse rounded-lg bg-white/[0.06]" />
             ) : !career.data || career.data.length === 0 ? (
-              <p className="text-sm text-white/55">Bu oyuncunun geçmiş istatistiği bulunamadı.</p>
+              <p className="text-sm text-white/55">{t('Bu oyuncunun geçmiş istatistiği bulunamadı.')}</p>
             ) : (
               <table className="w-full text-xs tabular-nums">
                 <thead className="text-white/45">
                   <tr>
-                    <th className="py-1 text-left font-semibold">Sezon</th>
-                    <th className="py-1 text-left font-semibold">Takım</th>
-                    <th className="py-1 text-center font-semibold" title="Maç">M</th>
-                    <th className="py-1 text-center font-semibold" title="Sayı">SAY</th>
-                    <th className="py-1 text-center font-semibold" title="Ribaund">RİB</th>
-                    <th className="py-1 text-center font-semibold" title="Asist">AST</th>
+                    <th className="py-1 text-left font-semibold">{t('Sezon')}</th>
+                    <th className="py-1 text-left font-semibold">{t('Takım')}</th>
+                    <th className="py-1 text-center font-semibold" title={t('Maç')}>{ab('M', 'GP', 'Sp')}</th>
+                    <th className="py-1 text-center font-semibold" title={t('Sayı')}>{ab('SAY', 'PTS', 'PKT')}</th>
+                    <th className="py-1 text-center font-semibold" title={t('Ribaund')}>{ab('RİB', 'REB', 'REB')}</th>
+                    <th className="py-1 text-center font-semibold" title={t('Asist')}>{ab('AST', 'A', 'V')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -134,15 +136,15 @@ export default function NbaPlayerPopover({ line, teamName, photo, showProfile, c
           {profile.loading ? (
             <div className="h-16 animate-pulse rounded-lg bg-white/[0.06]" />
           ) : profile.error ? (
-            <p className="text-sm text-red-300">Profil şu an alınamıyor.</p>
+            <p className="text-sm text-red-300">{t('Profil şu an alınamıyor.')}</p>
           ) : shown.length === 0 ? (
             <p className="text-sm text-white/55">Profil bilgisi bulunmuyor.</p>
           ) : (
             <dl className="grid grid-cols-2 gap-2">
               {shown.map(([label, value]) => (
                 <div key={label} className="rounded-lg bg-white/5 px-3 py-1.5">
-                  <dt className="text-[11px] text-white/50">{label}</dt>
-                  <dd className="truncate text-sm font-semibold">{value}</dd>
+                  <dt className="text-[11px] text-white/50">{t(label)}</dt>
+                  <dd className="truncate text-sm font-semibold">{typeof value === 'string' ? t(value) : value}</dd>
                 </div>
               ))}
             </dl>

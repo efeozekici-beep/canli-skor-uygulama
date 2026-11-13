@@ -2,8 +2,12 @@ import type { Match } from '../types/match'
 import { sameTeamName } from '../lib/team'
 
 // Canlı skor katmanı: kendi backend'imizin /api/live adresi (ESPN, kota yok) 30 saniyede bir okunur ve
-// API-Football'dan gelen maçların skor/dakika/durumu bunun üstüne yazılır. API-Football listesi ise
-// kotayı korumak için seyrek yenilenir (src/hooks/useMatches.ts).
+// API'den gelen maçların skor/dakika/durumu bunun üstüne yazılır. API listesi ise kotayı korumak için
+// seyrek yenilenir (src/hooks/useMatches.ts). Futbol dışında: basketbol (NBA, NCAA), hokey (NHL),
+// beyzbol (MLB), Amerikan futbolu (NFL, NCAA), MMA (UFC).
+
+/** Canlı katmanı olan sporlar */
+export const LIVE_SPORTS = new Set(['football', 'basketball', 'hockey', 'baseball', 'american-football', 'mma'])
 
 export interface LiveGoal {
   minute: string
@@ -23,23 +27,26 @@ export interface LiveEvent {
   home: { name: string; score: number | null }
   away: { name: string; score: number | null }
   goals: LiveGoal[]
+  period?: number
+  detail?: string
 }
 
 const TTL = 25_000
-let memory: { at: number; promise: Promise<LiveEvent[]> } | null = null
+const memory = new Map<string, { at: number; promise: Promise<LiveEvent[]> }>()
 
-export function getLiveEvents(): Promise<LiveEvent[]> {
-  if (memory && Date.now() - memory.at < TTL) return memory.promise
-  const promise = fetch('/api/live')
+export function getLiveEvents(sport = 'football'): Promise<LiveEvent[]> {
+  const hit = memory.get(sport)
+  if (hit && Date.now() - hit.at < TTL) return hit.promise
+  const promise = fetch(sport === 'football' ? '/api/live' : `/api/live?sport=${encodeURIComponent(sport)}`)
     .then(async (res) => {
       if (!res.ok) throw new Error(`Canlı skor alınamadı (HTTP ${res.status}).`)
       return ((await res.json()) as { events: LiveEvent[] }).events
     })
     .catch(() => {
-      memory = null // hata saklanmaz; bir sonraki turda tekrar denenir
+      memory.delete(sport) // hata saklanmaz; bir sonraki turda tekrar denenir
       return [] as LiveEvent[]
     })
-  memory = { at: Date.now(), promise }
+  memory.set(sport, { at: Date.now(), promise })
   return promise
 }
 
@@ -47,9 +54,11 @@ export function getLiveEvents(): Promise<LiveEvent[]> {
 // yazabilir). Birden fazla aday çıkarsa hiçbiri seçilmez: yanlış maça skor yazmaktansa beklemek iyi.
 export function findLiveEvent(match: Match, events: LiveEvent[]): { event: LiveEvent; swapped: boolean } | null {
   const start = Date.parse(match.startTime)
+  // MMA'da API bütün kartın başlama saatini veriyor, ESPN her dövüşün saatini: aynı gün yeterli
+  const window = match.sport === 'mma' ? 12 * 60 * 60_000 : 30 * 60_000
   const found: { event: LiveEvent; swapped: boolean }[] = []
   for (const event of events) {
-    if (Math.abs(Date.parse(event.start) - start) > 30 * 60_000) continue
+    if (Math.abs(Date.parse(event.start) - start) > window) continue
     if (sameTeamName(match.homeTeam, event.home.name) && sameTeamName(match.awayTeam, event.away.name)) found.push({ event, swapped: false })
     else if (sameTeamName(match.homeTeam, event.away.name) && sameTeamName(match.awayTeam, event.home.name)) found.push({ event, swapped: true })
   }
@@ -65,14 +74,53 @@ function liveLabel(event: LiveEvent): { minute: number | null; statusLabel?: str
   return { minute, statusLabel: clock.replace(/'\+/, '+').trim() || `${minute}'` }
 }
 
+// Futbol dışı sporlarda canlı durum etiketi: periyot / çeyrek / inning / raunt
+function otherLabel(sport: string, event: LiveEvent): string {
+  const p = event.period ?? 0
+  const between = event.status === 'STATUS_END_PERIOD' || event.status === 'STATUS_HALFTIME'
+  if (event.status === 'STATUS_HALFTIME') return 'Devre arası'
+  if (sport === 'hockey') return between ? 'Ara' : p > 3 ? 'Uzatma' : `${p}. Periyot`
+  if (sport === 'baseball') return p > 0 ? `${p}. İnning` : 'Canlı'
+  if (sport === 'american-football') return between ? 'Çeyrek arası' : p > 4 ? 'Uzatma' : `${p}. Çeyrek`
+  if (sport === 'mma') return p > 0 ? `${p}. Raunt` : 'Canlı'
+  return 'Canlı'
+}
+
+function applyOther(match: Match, event: LiveEvent, home: LiveEvent['home'], away: LiveEvent['away']): Match {
+  // MMA'da skor yok: sadece durum
+  const scores = match.sport === 'mma' ? {} : { homeScore: home.score, awayScore: away.score }
+  if (event.state === 'post' && event.completed) return { ...match, ...scores, status: 'finished', minute: null, statusLabel: undefined }
+  if (match.sport === 'basketball') {
+    const p = event.period ?? null
+    const between = event.status === 'STATUS_HALFTIME' || event.status === 'STATUS_END_PERIOD'
+    const label = event.status === 'STATUS_HALFTIME' ? 'Devre arası' : between ? 'Çeyrek arası' : undefined
+    const extras = match.basketball ?? { periods: [], period: null, clock: null, season: '' }
+    // Kolej basketbolu iki yarı oynanır: çeyrek yerine "2. Yarı 05:42"
+    if (/ncaa/i.test(match.leagueName) && !between && p !== null) {
+      const half = p > 2 ? 'Uzatma' : `${p}. Yarı`
+      return { ...match, ...scores, status: 'live', minute: null, statusLabel: event.clock ? `${half} ${event.clock}` : half, basketball: { ...extras, period: null, clock: null } }
+    }
+    return {
+      ...match,
+      ...scores,
+      status: 'live',
+      minute: null,
+      statusLabel: label ?? 'Canlı',
+      basketball: { ...extras, period: between ? null : p, clock: between ? null : event.clock },
+    }
+  }
+  return { ...match, ...scores, status: 'live', minute: null, statusLabel: otherLabel(match.sport, event) }
+}
+
 // Maçın skor/dakika/durumunu canlı veriyle güncelle. Bilgi yoksa ya da kesin değilse maç aynen kalır.
 export function applyLive(match: Match, events: LiveEvent[]): Match {
-  if (match.sport !== 'football' || match.status === 'finished') return match
+  if (!LIVE_SPORTS.has(match.sport) || match.status === 'finished') return match
   const found = findLiveEvent(match, events)
   if (!found) return match
   const { event, swapped } = found
   const home = swapped ? event.away : event.home
   const away = swapped ? event.home : event.away
+  if (match.sport !== 'football') return event.state === 'pre' ? match : applyOther(match, event, home, away)
   if (event.state === 'in') {
     return { ...match, status: 'live', homeScore: home.score, awayScore: away.score, ...liveLabel(event) }
   }

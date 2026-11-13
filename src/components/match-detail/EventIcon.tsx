@@ -64,7 +64,7 @@ export function Card({ color }: { color: 'yellow' | 'red' }) {
 export function SubArrows({ className = 'size-4' }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" aria-hidden="true" className={className}>
-      <path d="M6 15V4m0 0L3 7m3-3 3 3" fill="none" stroke="#34d058" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M6 15V4m0 0L3 7m3-3 3 3" fill="none" stroke="#22c55e" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
       <path d="M14 5v11m0 0 3-3m-3 3-3-3" fill="none" stroke="#f87171" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
   )

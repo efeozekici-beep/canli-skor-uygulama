@@ -9,6 +9,7 @@
 
 import { cacheGet, cacheSet, type Env } from './_lib/cache.js'
 import { getJson } from './_lib/http.js'
+import { clientIp, tooMany } from './_lib/limit.js'
 import { LEAGUE_SOURCES } from '../src/config/leagueSources.js'
 
 type Status = 'live' | 'finished' | 'upcoming'
@@ -38,7 +39,7 @@ const DAY = 24 * 60 * 60
 // Ana listedeki gibi açık gelen ligler (src/services/apiFootball.ts FEATURED_LEAGUES ile aynı)
 const FEATURED_FOOTBALL = ['2', '3', '848', '203', '206', '204', '39', '140', '135', '78', '61', '1', '4', '5', '10']
 
-const istanbulDay = (iso: string) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date(iso))
+export const istanbulDay = (iso: string) => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Istanbul' }).format(new Date(iso))
 
 // ---------- Futbol (ESPN) ----------
 interface EspnCompetitor {
@@ -46,7 +47,7 @@ interface EspnCompetitor {
   score?: string
   team: { displayName: string; logo?: string }
 }
-interface EspnEvent {
+export interface EspnEvent {
   id: string
   uid: string
   date: string
@@ -61,7 +62,7 @@ function espnDates(date: string) {
   return [prev, date].map((d) => d.replace(/-/g, ''))
 }
 
-async function espnEvents(path: string, date: string, extra = ''): Promise<EspnEvent[]> {
+export async function espnEvents(path: string, date: string, extra = ''): Promise<EspnEvent[]> {
   const lists = await Promise.all(
     espnDates(date).map((d) => getJson<{ events?: EspnEvent[] }>(`https://site.api.espn.com/apis/site/v2/sports/${path}/scoreboard?dates=${d}${extra}`)),
   )
@@ -95,7 +96,7 @@ const leagueFromSlug = (slug?: string) =>
     .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
     .join(' ') || 'Diğer'
 
-function status(e: EspnEvent): { status: Status; minute: number | null; statusLabel?: string } {
+export function status(e: EspnEvent): { status: Status; minute: number | null; statusLabel?: string } {
   const { state, completed, name } = e.status.type
   if (state === 'post' && completed) return { status: 'finished', minute: null }
   if (state === 'in') {
@@ -176,7 +177,7 @@ async function nbaDay(date: string): Promise<DayMatch[]> {
   })
 }
 
-interface ElGame {
+export interface ElGame {
   identifier: string
   utcDate: string
   played: boolean
@@ -184,24 +185,26 @@ interface ElGame {
   road: { club: { name: string; abbreviatedName?: string; images?: { crest?: string } }; score?: number }
 }
 
-const elSeason = () => {
+export const elSeason = () => {
   const now = new Date()
   return now.getUTCMonth() >= 7 ? now.getUTCFullYear() : now.getUTCFullYear() - 1
 }
 
-// Sezonun bütün maçları (büyük liste) 1 saat saklanır; gün buradan süzülür
-async function euroleagueDay(env: Env, competition: 'E' | 'U', date: string): Promise<DayMatch[]> {
+// Sezonun bütün maçları (büyük liste) 1 saat saklanır; gün (ve canlı katmandaki o anki maçlar) buradan süzülür
+export async function elSeasonGames(env: Env, competition: 'E' | 'U'): Promise<ElGame[]> {
   const key = `canliskor:day:v1:el-games:${competition}${elSeason()}`
-  let games: ElGame[]
   const hit = await cacheGet(env, key)
-  if (hit) games = JSON.parse(hit.body) as ElGame[]
-  else {
-    const raw = await getJson<{ data: ElGame[] }>(`https://api-live.euroleague.net/v2/competitions/${competition}/seasons/${competition}${elSeason()}/games`).catch(() => ({
-      data: [],
-    }))
-    games = raw.data.map((g) => ({ identifier: g.identifier, utcDate: g.utcDate, played: g.played, local: g.local, road: g.road }))
-    if (games.length > 0) await cacheSet(env, key, JSON.stringify(games), 60 * 60)
-  }
+  if (hit) return JSON.parse(hit.body) as ElGame[]
+  const raw = await getJson<{ data: ElGame[] }>(`https://api-live.euroleague.net/v2/competitions/${competition}/seasons/${competition}${elSeason()}/games`).catch(() => ({
+    data: [],
+  }))
+  const games = raw.data.map((g) => ({ identifier: g.identifier, utcDate: g.utcDate, played: g.played, local: g.local, road: g.road }))
+  if (games.length > 0) await cacheSet(env, key, JSON.stringify(games), 60 * 60)
+  return games
+}
+
+async function euroleagueDay(env: Env, competition: 'E' | 'U', date: string): Promise<DayMatch[]> {
+  const games = await elSeasonGames(env, competition)
   const utc = (iso: string) => (iso.endsWith('Z') ? iso : `${iso}Z`)
   return games
     .filter((g) => istanbulDay(utc(g.utcDate)) === date)
@@ -249,6 +252,7 @@ export async function handleDayRequest(request: Request, env: Env): Promise<Resp
   const key = `canliskor:day:v2:${sport}:${date}`
   const hit = await cacheGet(env, key)
   if (hit) return json(200, hit.body, Math.max(1, Math.ceil((hit.expiresAt - Date.now()) / 1000)))
+  if (await tooMany(env, `api:${clientIp(request)}`, 60, 60)) return json(429, JSON.stringify({ message: 'Çok fazla istek, biraz bekle.' }))
   try {
     const matches =
       sport === 'football'

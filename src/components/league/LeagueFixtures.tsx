@@ -7,6 +7,7 @@ import { useFavorites } from '../../hooks/useFavorites'
 import MatchRow from '../MatchRow'
 import LeagueTabs from './LeagueTabs'
 import { EmptyState, ErrorState, LoadingState } from '../match-detail/TabStates'
+import { locale, t } from '../../i18n'
 
 interface Props {
   leagueId: string
@@ -23,7 +24,7 @@ const KINDS: { id: FixtureKind; label: string }[] = [
 function groupByDay(matches: Match[]) {
   const groups: { day: string; matches: Match[] }[] = []
   for (const m of matches) {
-    const day = new Date(m.startTime).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'long' })
+    const day = new Date(m.startTime).toLocaleDateString(locale(), { day: 'numeric', month: 'long', weekday: 'long' })
     const last = groups[groups.length - 1]
     if (last?.day === day) last.matches.push(m)
     else groups.push({ day, matches: [m] })
@@ -50,13 +51,13 @@ export default function LeagueFixtures({ leagueId, season, onSelectMatch }: Prop
 
   return (
     <div className="space-y-4 p-3 sm:p-5">
-      <LeagueTabs tabs={KINDS} active={kind} onChange={setKind} label="Maç türü" variant="pill" />
+      <LeagueTabs tabs={KINDS} active={kind} onChange={setKind} label={t('Maç türü')} variant="pill" />
       {data.loading ? (
         <LoadingState rows={8} />
       ) : data.error ? (
         <ErrorState message={data.error} />
       ) : !data.data || data.data.length === 0 ? (
-        <EmptyState message={kind === 'results' ? 'Bu lig için sonuç bulunmuyor.' : 'Bu lig için fikstür bulunmuyor.'} />
+        <EmptyState message={kind === 'results' ? t('Bu lig için sonuç bulunmuyor.') : t('Bu lig için fikstür bulunmuyor.')} />
       ) : (
         <div className="overflow-hidden rounded-xl bg-white/[0.03]">
           {groupByDay(data.data).map((group) => (
@@ -65,7 +66,7 @@ export default function LeagueFixtures({ leagueId, season, onSelectMatch }: Prop
               {group.matches.map((m) => (
                 <div key={m.id}>
                   <MatchRow match={m} isFavorite={favorites.has(m.id)} isSelected={false} onToggleFavorite={toggleFavorite} onSelect={openMatch} />
-                  {unresolved === m.id && <p className="px-4 pb-2 text-xs text-white/50">Bu maçın detay sayfası şu an açılamıyor.</p>}
+                  {unresolved === m.id && <p className="px-4 pb-2 text-xs text-white/50">{t('Bu maçın detay sayfası şu an açılamıyor.')}</p>}
                 </div>
               ))}
             </section>

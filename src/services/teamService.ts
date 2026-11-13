@@ -124,6 +124,40 @@ export async function getTeamMatches(team: TeamInfo, leagueId: string): Promise<
   return matches
 }
 
+// Kadrodaki oyuncuların bu sezonki lig istatistikleri (ESPN). Oyuncular forma numarası + soyadıyla,
+// numara tutmazsa yalnız soyadıyla (tek aday varsa) eşleştirilir; emin olunamayan oyuncuda istatistik gösterilmez.
+export type SquadStats = espn.EspnRosterStats
+
+const plainName = (s: string) =>
+  s
+    .toLocaleLowerCase('tr')
+    .replace(/ı/g, 'i')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z\s-]/g, ' ')
+    .trim()
+const surname = (s: string) => plainName(s).split(/\s+/).pop() ?? ''
+
+export async function getSquadStats(team: TeamInfo, leagueId: string): Promise<SquadStats[] | null> {
+  const source = leagueSourceFor(leagueId)
+  if (!source) return null
+  const espnTeam = (await espn.getTeams(source.espn)).find((t) => sameTeamName(t.name, team.name))
+  if (!espnTeam) return null
+  return espn.getRosterStats(source.espn, espnTeam.id)
+}
+
+export function findSquadStats(player: SquadPlayer, stats: SquadStats[]): SquadStats | null {
+  const last = surname(player.name)
+  const sameSurname = (s: SquadStats) => {
+    const other = plainName(s.name)
+    return surname(s.name) === last || other.split(/\s+/).includes(last)
+  }
+  const byNumber = player.number !== null ? stats.find((s) => s.jersey === player.number && sameSurname(s)) : undefined
+  if (byNumber) return byNumber
+  const bySurname = stats.filter(sameSurname)
+  return bySurname.length === 1 ? bySurname[0] : null
+}
+
 // Sezon özeti: lig tablosundaki satırı (O / G / B / M, atılan / yenen gol)
 export async function getTeamStats(team: TeamInfo, leagueId: string): Promise<TeamStatsSummary | null> {
   const standings = await getStandings(leagueId, currentSeasonFor())

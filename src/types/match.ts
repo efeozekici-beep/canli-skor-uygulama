@@ -31,4 +31,10 @@ export interface Match {
   season?: number
   /** Basketball only: quarter scores, period and clock. */
   basketball?: BasketballExtras
+  /** MMA / tenis: kazanan taraf (skor yokken kaybeden soluk gösterilir). */
+  winner?: 'home' | 'away'
+  /** Tenis: set set oyun skorları (homeScore / awayScore kazanılan set sayısı). */
+  sets?: { home: number | null; away: number | null }[]
+  /** Formula 1: iki taraf yerine seans adı ("Yarış") ve sıralama (homeTeam = seans adı). */
+  event?: { title: string; results: string[] }
 }

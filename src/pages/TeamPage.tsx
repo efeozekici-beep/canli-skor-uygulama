@@ -8,6 +8,7 @@ import StandingsTable from '../components/league/StandingsTable'
 import TeamMatches from '../components/team/TeamMatches'
 import TeamSquad from '../components/team/TeamSquad'
 import { EmptyState, LoadingState } from '../components/match-detail/TabStates'
+import { locale, t } from '../i18n'
 
 type Tab = 'matches' | 'squad' | 'standings'
 
@@ -28,8 +29,8 @@ export default function TeamPage({ teamId, teamName, leagueHint, regionHint, onB
     teamId ? getTeam(teamId) : teamName ? findTeamByName(teamName, regionHint ?? undefined) : Promise.resolve(null),
   )
   const [tab, setTab] = useState<Tab>('matches')
-  const t = team.data
-  const leagueId = t ? teamLeagueId(t, leagueHint) : null
+  const info = team.data
+  const leagueId = info ? teamLeagueId(info, leagueHint) : null
   const tabs: { id: Tab; label: string }[] = [
     ...(leagueId ? [{ id: 'matches' as const, label: 'Maçlar' }] : []),
     { id: 'squad', label: 'Kadro' },
@@ -44,43 +45,43 @@ export default function TeamPage({ teamId, teamName, leagueHint, regionHint, onB
         <button
           type="button"
           onClick={onBack}
-          aria-label="Geri"
+          aria-label={t('Geri')}
           className="grid size-10 shrink-0 place-items-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
         >
           <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="size-5">
             <path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <p className="px-2 text-xs font-medium text-accent">Takım</p>
+        <p className="px-2 text-xs font-medium text-accent">{t('Takım')}</p>
       </div>
 
       {team.loading ? (
         <LoadingState rows={6} />
-      ) : !t ? (
+      ) : !info ? (
         <EmptyState message={team.error ?? 'Takım bulunamadı.'} />
       ) : (
         <>
           <div className="flex items-center gap-4 px-4 py-5 sm:px-6">
-            <TeamLogo name={t.name} logo={t.logo} size="lg" />
+            <TeamLogo name={info.name} logo={info.logo} size="lg" />
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-xl font-bold sm:text-2xl">{t.name}</h1>
+              <h1 className="truncate text-xl font-bold sm:text-2xl">{info.name}</h1>
               <p className="mt-0.5 text-sm text-white/55">
-                {[t.country, t.founded ? `Kuruluş ${t.founded}` : null].filter(Boolean).join(' · ')}
+                {[info.country ? t(info.country) : null, info.founded ? t('Kuruluş {year}', { year: info.founded }) : null].filter(Boolean).join(' · ')}
               </p>
-              {t.venue && (
+              {info.venue && (
                 <p className="mt-0.5 truncate text-xs text-white/45">
-                  {t.venue.name}
-                  {t.venue.city ? `, ${t.venue.city}` : ''}
-                  {t.venue.capacity ? ` · ${t.venue.capacity.toLocaleString('tr-TR')} kişilik` : ''}
+                  {info.venue.name}
+                  {info.venue.city ? `, ${info.venue.city}` : ''}
+                  {info.venue.capacity ? ` · ${t('{n} kişilik', { n: info.venue.capacity.toLocaleString(locale()) })}` : ''}
                 </p>
               )}
             </div>
           </div>
-          <LeagueTabs tabs={tabs} active={activeTab} onChange={setTab} label="Takım sayfası" />
+          <LeagueTabs tabs={tabs} active={activeTab} onChange={setTab} label={t('Takım sayfası')} />
           <div role="tabpanel" className="flex-1">
-            {activeTab === 'matches' && leagueId && <TeamMatches team={t} leagueId={leagueId} onSelectMatch={onSelectMatch} />}
-            {activeTab === 'squad' && <TeamSquad team={t} />}
-            {activeTab === 'standings' && leagueId && <StandingsTable leagueId={leagueId} season={currentSeasonFor()} highlightTeams={[t.name]} />}
+            {activeTab === 'matches' && leagueId && <TeamMatches team={info} leagueId={leagueId} onSelectMatch={onSelectMatch} />}
+            {activeTab === 'squad' && <TeamSquad team={info} leagueId={leagueId} />}
+            {activeTab === 'standings' && leagueId && <StandingsTable leagueId={leagueId} season={currentSeasonFor()} highlightTeams={[info.name]} />}
           </div>
         </>
       )}

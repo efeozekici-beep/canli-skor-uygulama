@@ -1,3 +1,5 @@
+import { locale, t } from '../i18n'
+
 export function startOfDay(date: Date) {
   const d = new Date(date)
   d.setHours(0, 0, 0, 0)
@@ -15,12 +17,12 @@ export function isSameDay(a: Date, b: Date) {
 }
 
 export function formatTime(iso: string) {
-  return new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+  return new Date(iso).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })
 }
 
 export function dayLabel(offset: number, date: Date) {
-  if (offset === 0) return 'Bugün'
-  if (offset === -1) return 'Dün'
-  if (offset === 1) return 'Yarın'
-  return date.toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' })
+  if (offset === 0) return t('Bugün')
+  if (offset === -1) return t('Dün')
+  if (offset === 1) return t('Yarın')
+  return date.toLocaleDateString(locale(), { day: 'numeric', month: 'short', weekday: 'short' })
 }

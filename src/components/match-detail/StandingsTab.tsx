@@ -7,6 +7,7 @@ import { leagueSourceFor } from '../../config/leagueSources'
 import TeamLogo from '../TeamLogo'
 import StandingsTable from '../league/StandingsTable'
 import { EmptyState, ErrorState, LoadingState } from './TabStates'
+import { ab, t } from '../../i18n'
 
 // Ligin puan tablosu; bu maçtaki iki takımın satırı vurgulanır.
 // API-Football'un ücretsiz planı bu sezonu vermediği için kaynağı olan liglerde (ESPN / football-data)
@@ -26,7 +27,7 @@ function ApiFootballStandings({ match }: { match: Match }) {
 
   if (standings.loading) return <LoadingState rows={8} />
   if (standings.error) return <ErrorState message={standings.error} />
-  if (!standings.data) return <EmptyState message="Bu lig için puan durumu verisi yok." />
+  if (!standings.data) return <EmptyState message={t('Bu lig için puan durumu verisi yok.')} />
   const highlighted = new Set([ids.home, ids.away])
   const th = 'px-1.5 py-2 text-center font-semibold'
 
@@ -36,13 +37,13 @@ function ApiFootballStandings({ match }: { match: Match }) {
         <thead className="text-xs text-white/50">
           <tr>
             <th className={th}>#</th>
-            <th className={`${th} text-left`}>Takım</th>
-            <th className={th} title="Oynanan">O</th>
-            <th className={th} title="Galibiyet">G</th>
-            <th className={th} title="Beraberlik">B</th>
-            <th className={th} title="Mağlubiyet">M</th>
-            <th className={th} title="Averaj">A</th>
-            <th className={th} title="Puan">P</th>
+            <th className={`${th} text-left`}>{t('Takım')}</th>
+            <th className={th} title={t('Oynanan')}>{ab('O', 'P', 'Sp')}</th>
+            <th className={th} title={t('Galibiyet')}>{ab('G', 'W', 'S')}</th>
+            <th className={th} title={t('Beraberlik')}>{ab('B', 'D', 'U')}</th>
+            <th className={th} title={t('Mağlubiyet')}>{ab('M', 'L', 'N')}</th>
+            <th className={th} title={t('Averaj')}>{ab('A', 'GD', 'TD')}</th>
+            <th className={th} title={t('Puan')}>{ab('P', 'Pts', 'Pkt')}</th>
           </tr>
         </thead>
         <tbody>

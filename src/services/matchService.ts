@@ -108,8 +108,38 @@ async function fetchOtherDay(sport: 'football' | 'basketball', date: Date, force
   return request
 }
 
+// Futbol / basketbol dışındaki sporlar: liste /api/sports'tan gelir (takım sporları ve MMA dün / bugün / yarın
+// API-Sports, diğer günler ESPN; tenis ve F1 hep ESPN). Bu maçların sayfasında sadece başlık var.
+export const OTHER_SPORTS = new Set(['volleyball', 'handball', 'hockey', 'baseball', 'rugby', 'american-football', 'mma', 'tennis', 'f1'])
+
+async function fetchOtherSport(sport: string, date: Date, force: boolean): Promise<Match[]> {
+  const key = `canliskor:fixtures:sport:${sport}:${date.toDateString()}`
+  if (!force) {
+    const cached = readCache(date, key)
+    if (cached) return cached
+  }
+  const pending = inflight.get(key)
+  if (pending) return pending
+  const day = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+  const request = fetch(`/api/sports?sport=${encodeURIComponent(sport)}&date=${day}`)
+    .then(async (res) => {
+      if (!res.ok) throw new Error('Bu günün maçları şu an alınamıyor.')
+      const matches = (await res.json()) as Match[]
+      writeCache(date, matches, key)
+      return matches
+    })
+    .finally(() => inflight.delete(key))
+  inflight.set(key, request)
+  return request
+}
+
 // The only place the UI gets match data from.
 export async function fetchMatches(sport: string, date: Date, { force = false } = {}): Promise<Match[]> {
+  if (!USE_MOCK && OTHER_SPORTS.has(sport)) {
+    const matches = await fetchOtherSport(sport, date, force)
+    registerMatches(matches)
+    return matches
+  }
   if (!USE_MOCK && (sport === 'football' || sport === 'basketball') && outsideApiWindow(date)) {
     const matches = await fetchOtherDay(sport, date, force)
     registerMatches(matches)

@@ -10,6 +10,7 @@ import FormBadges from './FormBadges'
 import { EmptyState, ErrorState, LoadingState } from '../match-detail/TabStates'
 import { teamHref } from '../../lib/navigation'
 import { leagueSourceFor } from '../../config/leagueSources'
+import { ab, t } from '../../i18n'
 
 interface Props {
   leagueId: string
@@ -43,15 +44,15 @@ function GroupTable({ rows, view, zones, playingToday, highlightTeams, teamLink 
       <thead className="text-xs text-white/45">
         <tr>
           <th className={`${th} w-10`}>#</th>
-          <th className={`${th} text-left`}>Takım</th>
-          <th className={th} title="Oynanan">O</th>
-          <th className={th} title="Galibiyet">G</th>
-          <th className={th} title="Beraberlik">B</th>
-          <th className={th} title="Mağlubiyet">M</th>
-          <th className={th} title="Averaj">Av</th>
-          <th className={`${th} hidden sm:table-cell`} title="Attığı : Yediği">Gol</th>
-          <th className={`${th} hidden md:table-cell`}>Son 5</th>
-          <th className={th} title="Puan">P</th>
+          <th className={`${th} text-left`}>{t('Takım')}</th>
+          <th className={th} title={t('Oynanan')}>{ab('O', 'P', 'Sp')}</th>
+          <th className={th} title={t('Galibiyet')}>{ab('G', 'W', 'S')}</th>
+          <th className={th} title={t('Beraberlik')}>{ab('B', 'D', 'U')}</th>
+          <th className={th} title={t('Mağlubiyet')}>{ab('M', 'L', 'N')}</th>
+          <th className={th} title={t('Averaj')}>{ab('Av', 'GD', 'TD')}</th>
+          <th className={`${th} hidden sm:table-cell`} title={t('Attığı : Yediği')}>{t('Gol')}</th>
+          <th className={`${th} hidden md:table-cell`}>{t('Son 5')}</th>
+          <th className={th} title={t('Puan')}>{ab('P', 'Pts', 'Pkt')}</th>
         </tr>
       </thead>
       <tbody>
@@ -84,7 +85,7 @@ function GroupTable({ rows, view, zones, playingToday, highlightTeams, teamLink 
                   <a href={teamLink(row.team)} className="flex items-center gap-2.5 hover:text-accent">
                     <TeamLogo name={row.team.name} logo={row.team.logo} size="row" />
                     <span className={`truncate font-medium ${isPlayingToday ? 'text-red-400' : ''}`}>{row.team.name}</span>
-                    {isPlayingToday && <span title="Bugün maçı var" className="size-1.5 shrink-0 rounded-full bg-red-500" />}
+                    {isPlayingToday && <span title={t('Bugün maçı var')} className="size-1.5 shrink-0 rounded-full bg-red-500" />}
                   </a>
                 </td>
                 <td className="px-1.5 py-2.5 text-center text-white/75">{split.played}</td>
@@ -116,7 +117,7 @@ export default function StandingsTable({ leagueId, season, highlightTeams = [] }
   if (standings.loading) return <LoadingState rows={10} />
   if (standings.error) return <ErrorState message={standings.error} />
   const groups = standings.data?.groups.filter((g) => g.rows.length > 0) ?? []
-  if (groups.length === 0) return <EmptyState message="Bu lig için puan durumu bulunmuyor." />
+  if (groups.length === 0) return <EmptyState message={t('Bu lig için puan durumu bulunmuyor.')} />
 
   // Her bölge açıklamasına bir renk (bütün gruplarda aynı)
   const zones = new Map<string, string>()
@@ -130,12 +131,12 @@ export default function StandingsTable({ leagueId, season, highlightTeams = [] }
 
   return (
     <div className="space-y-4 p-3 sm:p-5">
-      {hasSplits && <LeagueTabs tabs={VIEWS} active={view} onChange={setView} label="Tablo türü" variant="pill" />}
+      {hasSplits && <LeagueTabs tabs={VIEWS} active={view} onChange={setView} label={t('Tablo türü')} variant="pill" />}
 
       {groups.map((group) => (
         <section key={group.name}>
           {/* Birden fazla grup varsa her tablonun başlığı (Grup A, Grup B...) */}
-          {groups.length > 1 && <h3 className="mb-2 px-1 text-sm font-semibold text-white/80">{group.name}</h3>}
+          {groups.length > 1 && <h3 className="mb-2 px-1 text-sm font-semibold text-white/80">{t(group.name)}</h3>}
           <GroupTable
             rows={group.rows}
             view={activeView}
@@ -161,7 +162,7 @@ export default function StandingsTable({ leagueId, season, highlightTeams = [] }
       {playingToday.size > 0 && (
         <p className="flex items-center gap-2 px-1 text-xs text-white/50">
           <span aria-hidden="true" className="size-1.5 rounded-full bg-red-500" />
-          Bugün maçı olan takımlar
+          {t('Bugün maçı olan takımlar')}
         </p>
       )}
     </div>

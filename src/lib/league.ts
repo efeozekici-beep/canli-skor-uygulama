@@ -1,4 +1,5 @@
 import type { LeagueStandingRow, StandingSplit, StandingsView } from '../types/league'
+import { getLang } from '../i18n'
 
 // 2026 -> "2026/27"
 export function seasonLabel(season: number) {
@@ -23,8 +24,11 @@ export function denseRanks(values: number[]) {
   })
 }
 
-// API'nin İngilizce bölge açıklamalarını kısaca Türkçeleştir
+// API'nin İngilizce bölge açıklamaları: İngilizcede olduğu gibi (temizlenmiş), Almancada / Türkçede kısa çeviri
 export function translateZone(description: string) {
+  const lang = getLang()
+  if (lang === 'en') return description.replace(/Promotion - /gi, '').replace(/\(League phase: ?\)/gi, '').trim()
+  if (lang === 'de') return zoneDe(description)
   return description
     .replace(/Promotion - /gi, '')
     // ESPN biçimi: "Champions League qualifying", "Qualifies for round of 16", "Knockout phase playoffs - seeded"
@@ -47,6 +51,29 @@ export function translateZone(description: string) {
     .replace(/Knockout Round/gi, 'Eleme turu')
     .replace(/Round of 16/gi, 'Son 16')
     .replace(/Next Round/gi, 'Bir sonraki tur')
+    .replace(/\(League phase: ?\)/gi, '')
+    .trim()
+}
+
+function zoneDe(description: string) {
+  return description
+    .replace(/Promotion - /gi, '')
+    .replace(/Qualifies for round of 16/gi, 'Achtelfinale')
+    .replace(/Knockout phase playoffs - seeded/gi, 'K.-o.-Playoffs (gesetzt)')
+    .replace(/Knockout phase playoffs - unseeded/gi, 'K.-o.-Playoffs')
+    .replace(/Championship playoffs/gi, 'Meisterschafts-Playoffs')
+    .replace(/European playoffs/gi, 'Europa-Playoffs')
+    .replace(/Relegation playoffs?/gi, 'Relegation')
+    .replace(/Promotion playoffs?/gi, 'Aufstiegs-Playoffs')
+    .replace(/^Promotion$/gi, 'Aufstieg')
+    .replace(/Relegated/gi, 'Abstieg')
+    .replace(/ qualifying/gi, ' (Qualifikation)')
+    .replace(/Relegation/gi, 'Abstieg')
+    .replace(/Qualification/gi, 'Qualifikation')
+    .replace(/Play Offs?|Play-offs?|Playoffs?/gi, 'Playoffs')
+    .replace(/Knockout Round/gi, 'K.-o.-Runde')
+    .replace(/Round of 16/gi, 'Achtelfinale')
+    .replace(/Next Round/gi, 'Nächste Runde')
     .replace(/\(League phase: ?\)/gi, '')
     .trim()
 }

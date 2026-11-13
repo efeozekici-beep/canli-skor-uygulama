@@ -16,7 +16,7 @@ export const PROVIDERS = {
     baseUrl: '/api/basketball',
     useMock: mock(import.meta.env.VITE_API_BASKETBALL_MOCK),
     ttl: {
-      gamesToday: 60 * SECOND, // canlı skorlar değiştiği için kısa
+      gamesToday: 2 * MINUTE, // sunucu 10-30 dk saklar (kota); canlı skor NBA / NCAA'da ESPN katmanından
       gamesOtherDay: 30 * MINUTE,
       standings: HOUR,
       gameStatsLive: MINUTE, // takım / oyuncu istatistikleri: canlı maçta sık

@@ -4,8 +4,19 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#121814" />
+    <meta name="theme-color" content="#ffffff" />
     <title>CanlıSkor</title>
+    <!-- Tema ve dil ilk boyamadan önce: kullanıcının seçimi, yoksa cihazın ayarı (src/lib/theme.ts, src/i18n) -->
+    <script>
+      try {
+        var t = localStorage.getItem('canliskor:theme')
+        if (t !== 'light' && t !== 'dark') t = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+        document.documentElement.dataset.theme = t
+        if (t === 'dark') document.querySelector('meta[name="theme-color"]').setAttribute('content', '#0a1530')
+        var l = localStorage.getItem('canliskor:lang')
+        if (l === 'tr' || l === 'en' || l === 'de') document.documentElement.lang = l
+      } catch (e) {}
+    </script>
   </head>
   <body>
     <div id="root"></div>

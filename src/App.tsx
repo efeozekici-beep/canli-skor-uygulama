@@ -12,6 +12,22 @@ import TeamPage from './pages/TeamPage'
 import BasketballLeaguePage from './pages/BasketballLeaguePage'
 import BasketballTeamPage from './pages/BasketballTeamPage'
 import BasketballPlayerPage from './pages/BasketballPlayerPage'
+import { t } from './i18n'
+
+// Maç id'sinin öneki hangi spor: arka plan fotoğrafı için (futbol maçlarının id'si sayı -> null, çim kalır)
+function sportOfMatchId(id: string): string | null {
+  if (/^(bb-|espn-nba-|el-)/.test(id)) return 'basketball'
+  if (/^(vb-)/.test(id)) return 'volleyball'
+  if (/^(hb-)/.test(id)) return 'handball'
+  if (/^(ih-|espn-ih-)/.test(id)) return 'hockey'
+  if (/^(bsb-|espn-bsb-)/.test(id)) return 'baseball'
+  if (/^(rg-)/.test(id)) return 'rugby'
+  if (/^(af-|espn-af-)/.test(id)) return 'american-football'
+  if (/^(mma-|espn-mma-)/.test(id)) return 'mma'
+  if (/^espn-tn-/.test(id)) return 'tennis'
+  if (/^espn-f1-/.test(id)) return 'f1'
+  return null
+}
 
 // Ana liste sayfası mı? (#/ ya da boş hash)
 const isListPath = (path: string) => path === '/' || path === ''
@@ -82,19 +98,21 @@ function App() {
     window.scrollTo(0, isListPath(path) ? listScroll.current : 0)
   }, [path])
 
-  // Arka plan: basketbolda (ve basketbol maç sayfasında) salon parkesi, diğerlerinde çim.
-  // Parke fotoğrafı ancak basketbola ilk geçilince yüklenir (futbolcu ziyaretçi boşuna indirmesin),
-  // sonra ekranda kalır ki geri dönüşlerde yumuşakça geçiş olsun.
-  const onCourt = sport === 'basketball' || Boolean(matchPageId && /^(bb-|espn-nba-|el-)/.test(matchPageId))
-  const [courtSeen, setCourtSeen] = useState(onCourt)
-  if (onCourt && !courtSeen) setCourtSeen(true)
+  // Arka plan: her sporun kendi fotoğrafı (public/backgrounds/<spor>.jpg), futbolda çim. Maç sayfasında maçın
+  // sporu (id önekinden). Fotoğraf ancak o spora ilk geçilince yüklenir (herkes hepsini indirmesin), sonra
+  // ekranda kalır ki geri dönüşlerde yumuşakça geçiş olsun.
+  const backdrop = (matchPageId && sportOfMatchId(matchPageId)) ?? sport
+  const [seenBackdrops, setSeenBackdrops] = useState<string[]>(() => (backdrop === 'football' ? [] : [backdrop]))
+  if (backdrop !== 'football' && !seenBackdrops.includes(backdrop)) setSeenBackdrops([...seenBackdrops, backdrop])
 
   return (
     <div className="relative isolate flex min-h-dvh flex-col">
       {/* Tüm sitenin sabit arka planı (index.css → .cinematic-bg) */}
       <div aria-hidden="true" className="cinematic-bg">
         <span className="cinematic-bg__photo cinematic-bg__photo--grass" />
-        {courtSeen && <span className={`cinematic-bg__photo cinematic-bg__photo--court ${onCourt ? 'is-active' : ''}`} />}
+        {seenBackdrops.map((s) => (
+          <span key={s} className={`cinematic-bg__photo cinematic-bg__photo--sport cinematic-bg__photo--${s} ${s === backdrop ? 'is-active' : ''}`} />
+        ))}
       </div>
       <Header path={path} sport={sport} onSportChange={handleSportChange} />
 
@@ -102,21 +120,21 @@ function App() {
         <main className="mx-auto grid w-full max-w-7xl flex-1 place-items-center px-4 py-16 sm:px-6">
           <section className="w-full max-w-xl rounded-2xl border border-white/10 bg-pitch-950/55 p-8 text-center shadow-2xl backdrop-blur-sm sm:p-12">
             <span className="inline-block rounded-full bg-accent/15 px-3 py-1 text-xs font-semibold tracking-wide text-accent uppercase">
-              Yakında
+              {t('Yakında')}
             </span>
-            <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{page.label}</h1>
-            <p className="mt-3 text-white/70">Bu sayfa hazırlanıyor.</p>
+            <h1 className="mt-4 text-3xl font-bold tracking-tight sm:text-4xl">{t(page.label)}</h1>
+            <p className="mt-3 text-white/70">{page.path === '/oyunlar' ? t('Oyunlar çok yakında burada.') : t('Bu sayfa hazırlanıyor.')}</p>
           </section>
         </main>
       )}
 
       {matchPageId && (
         <main className="mx-auto w-full max-w-4xl flex-1 pb-12 sm:px-6 sm:pt-8">
-          <h1 className="sr-only">Maç detayı</h1>
+          <h1 className="sr-only">{t('Maç detayı')}</h1>
           {/* Liste kartıyla aynı renk ve gölge; ama tam genişlik ve iç boşluksuz */}
           <div className="match-container-card m-0 max-w-none overflow-hidden rounded-none border-x-0 p-0 sm:rounded-[14px] sm:border-x">
             {/* Basketbol maçları (id "bb-" ile başlar) kendi detay panelini kullanır */}
-            {/^(espn|el)-/.test(matchPageId) ? (
+            {/^(espn|el|vb|hb|ih|bsb|rg|af|mma)-/.test(matchPageId) ? (
               <BasicMatchPanel key={matchPageId} matchId={matchPageId} onClose={goBack} />
             ) : matchPageId.startsWith('bb-') ? (
               <BasketballDetailPanel key={matchPageId} matchId={matchPageId} onClose={goBack} />
@@ -190,8 +208,8 @@ function App() {
       {/* Skor listesi: maç/lig/oyuncu sayfası açıkken sadece gizlenir, böylece geri dönünce gün/filtre seçimi kaybolmaz */}
       {!page && (
         <main className={`mx-auto w-full max-w-5xl flex-1 px-4 pt-4 pb-12 sm:px-6 sm:pt-8 ${matchPageId || leagueId || playerId || teamRef || bbTeamRoute || bbPlayerRoute ? 'hidden' : ''}`}>
-          <h1 className="sr-only">{activeSport.label} canlı skorlar</h1>
-          <ScoreScreen sport={sport} sportLabel={activeSport.label} selectedId={lastOpenedId} onSelectMatch={openMatch} />
+          <h1 className="sr-only">{t('{sport} canlı skorlar', { sport: t(activeSport.label) })}</h1>
+          <ScoreScreen sport={sport} sportLabel={t(activeSport.label)} selectedId={lastOpenedId} onSelectMatch={openMatch} />
         </main>
       )}
     </div>

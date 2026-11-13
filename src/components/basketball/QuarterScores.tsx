@@ -1,5 +1,6 @@
 import type { Match } from '../../types/match'
 import TeamLogo from '../TeamLogo'
+import { t } from '../../i18n'
 
 // Çeyrek skorları tablosu: Takım | 1Ç 2Ç 3Ç 4Ç (Uz) | Toplam. Oynanmamış çeyrek "–".
 export default function QuarterScores({ match }: { match: Match }) {
@@ -22,7 +23,7 @@ export default function QuarterScores({ match }: { match: Match }) {
           </span>
         </td>
         {periods.map((p, i) => (
-          <td key={p.label} className={`px-2 py-2.5 text-center ${current === i + 1 ? 'font-bold text-[#fca5a5]' : 'text-white/75'}`}>
+          <td key={p.label} className={`px-2 py-2.5 text-center ${current === i + 1 ? 'font-bold text-red-300' : 'text-white/75'}`}>
             {cell(p[side])}
           </td>
         ))}
@@ -35,10 +36,10 @@ export default function QuarterScores({ match }: { match: Match }) {
     <table className="w-full text-sm tabular-nums">
       <thead className="text-xs text-white/45">
         <tr>
-          <th className="py-2 text-left font-semibold">Takım</th>
+          <th className="py-2 text-left font-semibold">{t('Takım')}</th>
           {periods.map((p) => (
             <th key={p.label} className="px-2 py-2 text-center font-semibold">
-              {p.label}
+              {t(p.label)}
             </th>
           ))}
           <th className="py-2 pl-2 text-center font-semibold">T</th>

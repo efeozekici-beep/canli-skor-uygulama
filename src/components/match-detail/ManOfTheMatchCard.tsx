@@ -2,6 +2,7 @@ import type { PlayerMatchStats } from '../../types/playerStats'
 import RatingBadge from './RatingBadge'
 import PlayerIcons from './PlayerIcons'
 import PlayerAvatar from '../common/PlayerAvatar'
+import { t } from '../../i18n'
 
 interface Props {
   player: PlayerMatchStats
@@ -22,7 +23,7 @@ export default function ManOfTheMatchCard({ player, teamName, live, onClick }: P
       <PlayerAvatar photo={player.photo} name={player.name} size="lg" className="ring-2 ring-amber-400" />
       <span className="min-w-0 flex-1">
         <span className="inline-block rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-extrabold tracking-wide text-pitch-950 uppercase">
-          {live ? 'Şu anki en iyi oyuncu' : 'Maçın Adamı'}
+          {live ? t('Şu anki en iyi oyuncu') : t('Maçın Adamı')}
         </span>
         <span className="mt-1 block truncate font-semibold">{player.name}</span>
         <span className="flex items-center gap-2 text-xs text-white/60">

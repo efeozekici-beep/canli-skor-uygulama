@@ -2,6 +2,7 @@ import type { ReactNode } from 'react'
 import type { SearchResults as Results } from '../../types/search'
 import { optionId } from '../../lib/search'
 import SearchResultItem from './SearchResultItem'
+import { t } from '../../i18n'
 
 interface Props {
   listId: string
@@ -24,10 +25,10 @@ function Group({ title, children }: { title: string; children: ReactNode }) {
 
 // Gruplu sonuç paneli: Takımlar | Ligler | Oyuncular + yükleniyor / boş / hata durumları
 export default function SearchResults({ listId, status, results, activeKey, onSelect }: Props) {
-  if (status === 'idle') return <p className="px-4 py-5 text-center text-sm text-white/50">Aramak için en az 3 harf yaz.</p>
+  if (status === 'idle') return <p className="px-4 py-5 text-center text-sm text-white/50">{t('Aramak için en az 3 harf yaz.')}</p>
   if (status === 'loading') {
     return (
-      <div role="status" aria-label="Aranıyor" className="space-y-2 p-3">
+      <div role="status" aria-label={t('Aranıyor')} className="space-y-2 p-3">
         {Array.from({ length: 4 }, (_, i) => (
           <div key={i} className="flex items-center gap-3">
             <div className="size-8 animate-pulse rounded-full bg-white/[0.08]" />
@@ -37,36 +38,36 @@ export default function SearchResults({ listId, status, results, activeKey, onSe
       </div>
     )
   }
-  if (status === 'error') return <p role="alert" className="px-4 py-5 text-center text-sm text-red-300">Arama şu an çalışmıyor.</p>
+  if (status === 'error') return <p role="alert" className="px-4 py-5 text-center text-sm text-red-300">{t('Arama şu an çalışmıyor.')}</p>
   if (!results || (results.teams.length === 0 && results.leagues.length === 0 && results.players.length === 0)) {
-    return <p className="px-4 py-5 text-center text-sm text-white/50">Sonuç bulunamadı.</p>
+    return <p className="px-4 py-5 text-center text-sm text-white/50">{t('Sonuç bulunamadı.')}</p>
   }
 
   const isActive = (key: string) => key === activeKey
 
   return (
-    <ul id={listId} role="listbox" aria-label="Arama sonuçları" className="p-1">
+    <ul id={listId} role="listbox" aria-label={t('Arama sonuçları')} className="p-1">
       {results.teams.length > 0 && (
-        <Group title="Takımlar">
-          {results.teams.map((t) => {
-            const key = `takim-${t.id}`
+        <Group title={t('Takımlar')}>
+          {results.teams.map((team) => {
+            const key = `takim-${team.id}`
             return (
               <SearchResultItem
                 key={key}
                 id={optionId(listId, key)}
-                title={t.name}
-                subtitle={t.country}
-                image={t.logo}
+                title={team.name}
+                subtitle={t(team.country ?? '')}
+                image={team.logo}
                 kind="team"
                 active={isActive(key)}
-                onSelect={() => onSelect(t.href)}
+                onSelect={() => onSelect(team.href)}
               />
             )
           })}
         </Group>
       )}
       {results.leagues.length > 0 && (
-        <Group title="Ligler">
+        <Group title={t('Ligler')}>
           {results.leagues.map((l) => {
             const key = `lig-${l.id}`
             return (
@@ -74,7 +75,7 @@ export default function SearchResults({ listId, status, results, activeKey, onSe
                 key={key}
                 id={optionId(listId, key)}
                 title={l.name}
-                subtitle={l.region}
+                subtitle={t(l.region ?? '')}
                 image={l.logo}
                 kind="league"
                 active={isActive(key)}
@@ -85,7 +86,7 @@ export default function SearchResults({ listId, status, results, activeKey, onSe
         </Group>
       )}
       {results.players.length > 0 && (
-        <Group title="Oyuncular">
+        <Group title={t('Oyuncular')}>
           {results.players.map((p) => {
             const key = `oyuncu-${p.id}`
             return (

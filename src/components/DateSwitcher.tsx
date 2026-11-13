@@ -1,3 +1,5 @@
+import { t } from '../i18n'
+
 interface Props {
   label: string
   onPrev: () => void
@@ -24,13 +26,13 @@ const arrowClass =
 export default function DateSwitcher({ label, onPrev, onNext }: Props) {
   return (
     <div className="flex items-center rounded-full border border-white/15 bg-black/20">
-      <button type="button" aria-label="Önceki gün" onClick={onPrev} className={arrowClass}>
+      <button type="button" aria-label={t('Önceki gün')} onClick={onPrev} className={arrowClass}>
         <Chevron direction="left" />
       </button>
       <span aria-live="polite" className="min-w-24 text-center text-sm font-semibold text-accent tabular-nums">
         {label}
       </span>
-      <button type="button" aria-label="Sonraki gün" onClick={onNext} className={arrowClass}>
+      <button type="button" aria-label={t('Sonraki gün')} onClick={onNext} className={arrowClass}>
         <Chevron direction="right" />
       </button>
     </div>

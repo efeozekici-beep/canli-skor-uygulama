@@ -1,6 +1,7 @@
 import type { LeagueInfo } from '../../types/league'
 import { seasonLabel } from '../../lib/league'
 import LeagueLogo from '../common/LeagueLogo'
+import { t } from '../../i18n'
 
 interface Props {
   league: LeagueInfo
@@ -21,14 +22,14 @@ export default function LeagueHeader({ league, season, onSeasonChange }: Props) 
         <p className="mt-0.5 flex items-center gap-2 text-sm text-white/55">
           {league.region}
           {league.isMock && (
-            <span title="Bu lig için şimdilik örnek veri gösteriliyor" className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300">
-              Örnek veri
+            <span title={t('Bu lig için şimdilik örnek veri gösteriliyor')} className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300">
+              {t('Örnek veri')}
             </span>
           )}
         </p>
       </div>
       <label className="flex items-center gap-2 text-sm text-white/60">
-        Sezon
+        {t('Sezon')}
         <select
           value={season}
           onChange={(e) => onSeasonChange(Number(e.target.value))}

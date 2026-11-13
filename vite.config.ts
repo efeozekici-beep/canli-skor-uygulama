@@ -9,27 +9,55 @@ import { handleLeadersRequest } from './api/leaders.ts'
 import { handleTeamRequest } from './api/team.ts'
 import { handleArchiveRequest } from './api/archive.ts'
 import { handleDayRequest } from './api/day.ts'
+import { handleSportsRequest } from './api/sports.ts'
+import { handleChatRequest } from './api/chat.ts'
+import { handleAuthRequest } from './api/auth.ts'
 
 // Yerelde /api/* isteklerini canlıdaki backend koduyla (api/proxy.ts, api/photos.ts) karşılar:
 // anahtar ekleme, izinli uç noktalar ve önbellek yerelde de aynı çalışır.
 function localApi(env: Record<string, string>): Plugin {
   const middleware: Connect.NextHandleFunction = (req, res, next) => {
     if (!req.url?.startsWith('/api/')) return next()
-    const request = new Request(new URL(req.url, 'http://localhost'), { method: req.method })
-    const handler = req.url.startsWith('/api/photos')
+    const url = req.url
+    // POST (sohbet mesajı) için gövde de okunur
+    const readBody = () =>
+      new Promise<string | undefined>((resolve) => {
+        if (req.method !== 'POST') return resolve(undefined)
+        const chunks: Buffer[] = []
+        req.on('data', (c: Buffer) => chunks.push(c))
+        req.on('end', () => resolve(Buffer.concat(chunks).toString('utf8')))
+      })
+    const handler = url.startsWith('/api/auth')
+      ? handleAuthRequest
+      : url.startsWith('/api/chat')
+      ? handleChatRequest
+      : url.startsWith('/api/photos')
       ? handlePhotosRequest
-      : req.url.startsWith('/api/live')
+      : url.startsWith('/api/live')
         ? handleLiveRequest
-        : req.url.startsWith('/api/leaders')
+        : url.startsWith('/api/leaders')
           ? handleLeadersRequest
-          : req.url.startsWith('/api/team?') || req.url === '/api/team'
+          : url.startsWith('/api/team?') || url === '/api/team'
             ? handleTeamRequest
-            : req.url.startsWith('/api/archive')
+            : url.startsWith('/api/archive')
               ? handleArchiveRequest
-              : req.url.startsWith('/api/day')
+              : url.startsWith('/api/day')
                 ? handleDayRequest
-                : handleApiRequest
-    handler(request, env)
+                : url.startsWith('/api/sports?')
+                  ? handleSportsRequest
+                  : handleApiRequest
+    readBody()
+      .then((body) =>
+        handler(
+          new Request(new URL(url, 'http://localhost'), {
+            method: req.method,
+            body,
+            // Oturum çerezi (giriş yapmış kullanıcı) ve içerik türü backend'e iletilir
+            headers: { 'content-type': 'application/json', ...(req.headers.cookie ? { cookie: req.headers.cookie } : {}) },
+          }),
+          env,
+        ),
+      )
       .then(async (response) => {
         res.statusCode = response.status
         response.headers.forEach((value, key) => res.setHeader(key, value))

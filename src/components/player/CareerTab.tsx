@@ -4,6 +4,7 @@ import { useDetailData } from '../../hooks/useDetailData'
 import { seasonLabel } from '../../lib/league'
 import TeamLogo from '../TeamLogo'
 import { EmptyState, ErrorState, LoadingState } from '../match-detail/TabStates'
+import { ab, t } from '../../i18n'
 
 // Aynı takımda üst üste geçen sezonları grupla: takım hücresi grubun ilk satırında bir kez çizilir
 function groupConsecutive(entries: CareerEntry[]) {
@@ -24,7 +25,7 @@ export default function CareerTab({ playerId }: { playerId: string }) {
 
   if (career.loading) return <LoadingState rows={6} />
   if (career.error) return <ErrorState message={career.error} />
-  if (!career.data || career.data.length === 0) return <EmptyState message="Bu oyuncu için veri bulunmuyor." />
+  if (!career.data || career.data.length === 0) return <EmptyState message={t('Bu oyuncu için veri bulunmuyor.')} />
 
   const sorted = [...career.data].sort((a, b) => b.season - a.season)
   const th = 'px-2 py-2 font-semibold'
@@ -37,14 +38,14 @@ export default function CareerTab({ playerId }: { playerId: string }) {
       <table className="w-full text-sm tabular-nums">
         <thead className="text-xs text-white/45">
           <tr>
-            <th className={`${th} text-left`}>Sezon</th>
-            <th className={`${th} text-left`}>Takım</th>
-            <th className={`${th} hidden text-left sm:table-cell`}>Lig</th>
-            <th className={`${th} text-center`} title={startsOnly ? 'İlk 11' : 'Maç'}>
-              {startsOnly ? 'İ11' : 'M'}
+            <th className={`${th} text-left`}>{t('Sezon')}</th>
+            <th className={`${th} text-left`}>{t('Takım')}</th>
+            <th className={`${th} hidden text-left sm:table-cell`}>{t('Lig')}</th>
+            <th className={`${th} text-center`} title={startsOnly ? t('İlk 11') : t('Maç')}>
+              {startsOnly ? ab('İ11', 'XI', 'S11') : ab('M', 'GP', 'Sp')}
             </th>
-            <th className={`${th} text-center`} title="Gol">G</th>
-            <th className={`${th} text-center`} title="Asist">A</th>
+            <th className={`${th} text-center`} title={t('Gol')}>{ab('G', 'G', 'T')}</th>
+            <th className={`${th} text-center`} title={t('Asist')}>{ab('A', 'A', 'V')}</th>
           </tr>
         </thead>
         {groupConsecutive(sorted).map((group) => (

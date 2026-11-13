@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import type { PlayerMatchStats } from '../../types/playerStats'
 import { CHART_SURFACE, TEAM_COLORS } from '../../lib/chartColors'
 import PlayerAvatar from '../common/PlayerAvatar'
+import { t } from '../../i18n'
 
 // Oyuncu karşılaştırma radarı: iki oyuncunun bu maçtaki istatistikleri örümcek ağı grafiğinde.
 // Her eksen 0 = hiç, dış çember = bu maçta o istatistikte en iyi oyuncu (reyting 5-10, pas isabeti %0-100).
@@ -82,7 +83,7 @@ export default function PlayerRadar({ players, homeTeam, awayTeam }: { players: 
 
   return (
     <section className="space-y-4 border-t border-white/10 p-4">
-      <h3 className="text-sm font-semibold text-white/80">Oyuncu karşılaştırma</h3>
+      <h3 className="text-sm font-semibold text-white/80">{t('Oyuncu karşılaştırma')}</h3>
 
       {/* Oyuncu seçiciler: renkli çizgi grafikteki rengi tanıtır (lejant) */}
       <div className="grid grid-cols-2 gap-2">
@@ -102,7 +103,7 @@ export default function PlayerRadar({ players, homeTeam, awayTeam }: { players: 
               className="w-full rounded-lg border border-white/10 bg-black/30 px-2 py-1.5 text-sm text-white"
             >
               {groups.map((g) => (
-                <optgroup key={g.label} label={g.label}>
+                <optgroup key={g.label} label={t(g.label)}>
                   {g.list.map((p) => (
                     <option key={p.playerId} value={p.playerId}>
                       {p.name}
@@ -117,14 +118,14 @@ export default function PlayerRadar({ players, homeTeam, awayTeam }: { players: 
       </div>
 
       <div className="relative mx-auto w-full max-w-sm">
-        <svg viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label={`${a.name} ile ${b.name} karşılaştırması`} className="w-full overflow-visible">
+        <svg viewBox={`0 0 ${SIZE} ${SIZE}`} role="img" aria-label={t('{a} ile {b} karşılaştırması', { a: a.name, b: b.name })} className="w-full overflow-visible">
           {/* Arka plan ağı: silik halkalar ve eksen çizgileri */}
           {[0.25, 0.5, 0.75, 1].map((r) => (
             <polygon
               key={r}
               points={axes.map((_, i) => point(i, axes.length, r * RADIUS)).map(({ x, y }) => `${x},${y}`).join(' ')}
               fill="none"
-              stroke="rgba(255,255,255,0.1)"
+              style={{ stroke: 'var(--cs-line)' }}
               strokeWidth="1"
             />
           ))}
@@ -134,7 +135,7 @@ export default function PlayerRadar({ players, homeTeam, awayTeam }: { players: 
             const anchor = Math.abs(label.x - CENTER) < 8 ? 'middle' : label.x > CENTER ? 'start' : 'end'
             return (
               <g key={axis.key}>
-                <line x1={CENTER} y1={CENTER} x2={end.x} y2={end.y} stroke="rgba(255,255,255,0.1)" strokeWidth="1" />
+                <line x1={CENTER} y1={CENTER} x2={end.x} y2={end.y} style={{ stroke: 'var(--cs-line)' }} strokeWidth="1" />
                 <text
                   x={label.x}
                   y={label.y}
@@ -142,7 +143,7 @@ export default function PlayerRadar({ players, homeTeam, awayTeam }: { players: 
                   dominantBaseline="middle"
                   className={`text-[11px] ${hovered === i ? 'fill-white font-semibold' : 'fill-white/60'}`}
                 >
-                  {axis.label}
+                  {t(axis.label)}
                 </text>
               </g>
             )
@@ -156,7 +157,7 @@ export default function PlayerRadar({ players, homeTeam, awayTeam }: { players: 
           {series.map((s) =>
             axes.map((axis, i) => {
               const { x, y } = point(i, axes.length, Math.max(0.03, ratio(axis, s.player)) * RADIUS)
-              return <circle key={`${s.key}-${axis.key}`} cx={x} cy={y} r={hovered === i ? 5 : 4} fill={s.color} stroke={CHART_SURFACE} strokeWidth="2" />
+              return <circle key={`${s.key}-${axis.key}`} cx={x} cy={y} r={hovered === i ? 5 : 4} fill={s.color} style={{ stroke: CHART_SURFACE }} strokeWidth="2" />
             }),
           )}
 
@@ -204,14 +205,14 @@ export default function PlayerRadar({ players, homeTeam, awayTeam }: { players: 
             return (
               <tr key={axis.key} className={`border-t border-white/5 ${hovered === i ? 'bg-white/[0.04]' : ''}`}>
                 <td className={`py-1.5 pl-1 text-left ${va > vb ? 'font-bold text-white' : 'text-white/70'}`}>{shown(axis, a)}</td>
-                <td className="py-1.5 text-center text-xs text-white/55">{axis.label}</td>
+                <td className="py-1.5 text-center text-xs text-white/55">{t(axis.label)}</td>
                 <td className={`py-1.5 pr-1 text-right ${vb > va ? 'font-bold text-white' : 'text-white/70'}`}>{shown(axis, b)}</td>
               </tr>
             )
           })}
         </tbody>
       </table>
-      <p className="text-[11px] text-white/40">Dış çember: bu maçta o istatistikte en iyi oyuncu.</p>
+      <p className="text-[11px] text-white/40">{t('Dış çember: bu maçta o istatistikte en iyi oyuncu.')}</p>
     </section>
   )
 }

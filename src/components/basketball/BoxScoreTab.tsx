@@ -8,6 +8,7 @@ import TeamLogo from '../TeamLogo'
 import PlayerAvatar from '../common/PlayerAvatar'
 import NbaPlayerPopover from './NbaPlayerPopover'
 import { EmptyState, ErrorState, LoadingState } from '../match-detail/TabStates'
+import { ab, t } from '../../i18n'
 
 // "–": bu kaynak o istatistiği vermiyor
 const dash = (v: number | null) => (v === null ? '–' : v)
@@ -25,11 +26,11 @@ export default function BoxScoreTab({ match }: { match: Match }) {
   )
   const photoOf = (name: string) => photos.data?.[name] ?? undefined
 
-  if (match.status === 'upcoming') return <EmptyState message="İstatistikler maç başlayınca görünecek." />
+  if (match.status === 'upcoming') return <EmptyState message={t('İstatistikler maç başlayınca görünecek.')} />
   if (detail.loading) return <LoadingState rows={8} />
   // API-NBA hata verse de maçın temel bilgileri (Özet sekmesi) API-Basketball'dan gelmeye devam eder
-  if (detail.error) return <ErrorState message="Oyuncu istatistikleri şu an alınamıyor." />
-  if (!box) return <EmptyState message="Detaylı istatistik bulunmuyor." />
+  if (detail.error) return <ErrorState message={t('Oyuncu istatistikleri şu an alınamıyor.')} />
+  if (!box) return <EmptyState message={t('Detaylı istatistik bulunmuyor.')} />
 
   const team = box[side]
   const th = 'px-2 py-2 font-semibold whitespace-nowrap'
@@ -37,7 +38,7 @@ export default function BoxScoreTab({ match }: { match: Match }) {
 
   return (
     <div className="space-y-4 p-3 sm:p-5">
-      <div role="tablist" aria-label="Takım" className="grid grid-cols-2 gap-1 rounded-full bg-black/30 p-1">
+      <div role="tablist" aria-label={t('Takım')} className="grid grid-cols-2 gap-1 rounded-full bg-black/30 p-1">
         {(['home', 'away'] as const).map((s) => (
           <button
             key={s}
@@ -56,31 +57,31 @@ export default function BoxScoreTab({ match }: { match: Match }) {
       </div>
 
       {team.players.length === 0 ? (
-        <EmptyState message="Bu takım için oyuncu istatistiği yok." />
+        <EmptyState message={t('Bu takım için oyuncu istatistiği yok.')} />
       ) : (
         // Dar ekranda tablo yatay kaydırılır
         <div className="no-scrollbar overflow-x-auto rounded-xl bg-white/[0.03]">
           <table className="w-full text-sm tabular-nums">
             <thead className="text-xs text-white/45">
               <tr>
-                <th className={`${th} sticky left-0 bg-[#131b16] text-left`}>Oyuncu</th>
-                <th className={th} title="Dakika">DK</th>
-                <th className={th} title="Sayı">SAY</th>
-                <th className={th} title="Ribaund">RİB</th>
-                <th className={th} title="Asist">AST</th>
-                <th className={th} title="Top çalma">TÇ</th>
+                <th className={`${th} sticky left-0 bg-pitch-950 text-left`}>{t('Oyuncu')}</th>
+                <th className={th} title={t('Dakika')}>{ab('DK', 'MIN', 'MIN')}</th>
+                <th className={th} title={t('Sayı')}>{ab('SAY', 'PTS', 'PKT')}</th>
+                <th className={th} title={t('Ribaund')}>{ab('RİB', 'REB', 'REB')}</th>
+                <th className={th} title={t('Asist')}>{ab('AST', 'A', 'V')}</th>
+                <th className={th} title={t('Top çalma')}>{ab('TÇ', 'STL', 'BS')}</th>
                 <th className={th} title="Blok">BLK</th>
-                <th className={th} title="Top kaybı">TK</th>
-                <th className={th} title="Saha içi isabet / deneme">SAHA</th>
-                <th className={th} title="Üç sayı isabet / deneme">3S</th>
-                <th className={th} title="Serbest atış isabet / deneme">SA</th>
-                <th className={th} title="Sahadayken skor farkı">+/-</th>
+                <th className={th} title={t('Top kaybı')}>{ab('TK', 'TO', 'BV')}</th>
+                <th className={th} title={t('Saha içi isabet / deneme')}>{ab('SAHA', 'FG', 'FG')}</th>
+                <th className={th} title={t('Üç sayı isabet / deneme')}>{ab('3S', '3P', '3P')}</th>
+                <th className={th} title={t('Serbest atış isabet / deneme')}>{ab('SA', 'FT', 'FW')}</th>
+                <th className={th} title={t('Sahadayken skor farkı')}>+/-</th>
               </tr>
             </thead>
             <tbody>
               {team.players.map((p) => (
                 <tr key={p.playerId} className="border-t border-white/5">
-                  <td className="sticky left-0 bg-[#131b16] px-2 py-2">
+                  <td className="sticky left-0 bg-pitch-950 px-2 py-2">
                     <button
                       type="button"
                       onClick={() => setSelected({ line: p, teamName: team.team.name })}
@@ -88,7 +89,7 @@ export default function BoxScoreTab({ match }: { match: Match }) {
                     >
                       <PlayerAvatar photo={photoOf(p.name)} name={p.name} size="sm" />
                       <span className="whitespace-nowrap">{p.name}</span>
-                      {p.position && <span className="text-xs text-white/40">{p.position}</span>}
+                      {p.position && <span className="text-xs text-white/40">{t(p.position)}</span>}
                     </button>
                   </td>
                   <td className={`${td} text-white/60`}>{p.minutes ?? '–'}</td>
@@ -117,7 +118,7 @@ export default function BoxScoreTab({ match }: { match: Match }) {
         </div>
       )}
       <p className="text-xs text-white/40">
-        {box.profiles === 'nba' ? 'Oyuncu adına dokunarak profilini görebilirsin.' : 'Oyuncu adına dokunarak maç istatistiklerini görebilirsin.'}
+        {box.profiles === 'nba' ? t('Oyuncu adına dokunarak profilini görebilirsin.') : t('Oyuncu adına dokunarak maç istatistiklerini görebilirsin.')}
       </p>
 
       {selected && (

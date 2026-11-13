@@ -2,10 +2,11 @@ import type { PlayerProfile } from '../../types/player'
 import TeamLogo from '../TeamLogo'
 import PlayerAvatar from '../common/PlayerAvatar'
 import { teamHref } from '../../lib/navigation'
+import { locale, t } from '../../i18n'
 
 // Ad, takım ve kişisel bilgiler (yaş, uyruk, boy, kilo, doğum tarihi). Sadece bilinenler gösterilir.
 export default function PlayerHeader({ profile }: { profile: PlayerProfile }) {
-  const birth = profile.birthDate ? new Date(profile.birthDate).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }) : null
+  const birth = profile.birthDate ? new Date(profile.birthDate).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' }) : null
   const facts: [string, string | null][] = [
     ['Yaş', profile.age !== null ? String(profile.age) : null],
     ['Uyruk', profile.nationality],
@@ -32,8 +33,8 @@ export default function PlayerHeader({ profile }: { profile: PlayerProfile }) {
             {profile.number !== null && <span className="font-semibold text-white">#{profile.number}</span>}
             {profile.position && <span>{profile.position}</span>}
             {profile.isMock && (
-              <span title="Bu oyuncu için şimdilik örnek veri gösteriliyor" className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300">
-                Örnek veri
+              <span title={t('Bu oyuncu için şimdilik örnek veri gösteriliyor')} className="rounded-full bg-amber-400/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300">
+                {t('Örnek veri')}
               </span>
             )}
           </div>
@@ -44,8 +45,8 @@ export default function PlayerHeader({ profile }: { profile: PlayerProfile }) {
         <dl className="mt-5 grid grid-cols-2 gap-2 sm:grid-cols-5">
           {known.map(([label, value]) => (
             <div key={label} className="rounded-lg bg-white/5 px-3 py-2">
-              <dt className="text-xs text-white/50">{label}</dt>
-              <dd className="truncate text-sm font-semibold">{value}</dd>
+              <dt className="text-xs text-white/50">{t(label)}</dt>
+              <dd className="truncate text-sm font-semibold">{t(value)}</dd>
             </div>
           ))}
         </dl>

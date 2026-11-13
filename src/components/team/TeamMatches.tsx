@@ -10,9 +10,10 @@ import MatchRow from '../MatchRow'
 import TeamStatsCard from './TeamStatsCard'
 import ResultBadge from './ResultBadge'
 import { EmptyState, ErrorState, LoadingState } from '../match-detail/TabStates'
+import { locale, t } from '../../i18n'
 
 const dayLabel = (m: Match) =>
-  new Date(m.startTime).toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', weekday: 'short' })
+  new Date(m.startTime).toLocaleDateString(locale(), { day: 'numeric', month: 'long', weekday: 'short' })
 
 // Takımın bu maçtaki sonucu (ev sahibi mi deplasman mı adından anlaşılır)
 function resultFor(m: Match, teamName: string): 'W' | 'D' | 'L' | null {
@@ -55,7 +56,7 @@ export default function TeamMatches({ team, leagueId, onSelectMatch }: { team: T
               {dayLabel(m)}
             </p>
             <MatchRow match={m} isFavorite={favorites.has(m.id)} isSelected={false} onToggleFavorite={toggleFavorite} onSelect={open} />
-            {unresolved === m.id && <p className="px-4 pb-2 text-xs text-white/50">Bu maçın detay sayfası şu an açılamıyor.</p>}
+            {unresolved === m.id && <p className="px-4 pb-2 text-xs text-white/50">{t('Bu maçın detay sayfası şu an açılamıyor.')}</p>}
           </li>
         )
       })}
@@ -70,16 +71,16 @@ export default function TeamMatches({ team, leagueId, onSelectMatch }: { team: T
       ) : matches.error ? (
         <ErrorState message={matches.error} />
       ) : all.length === 0 ? (
-        <EmptyState message="Bu sezonun maçları bulunamadı." />
+        <EmptyState message={t('Bu sezonun maçları bulunamadı.')} />
       ) : (
         <>
           <section>
-            <h3 className="mb-2 px-1 text-sm font-semibold text-white/70">Son Maçlar</h3>
-            {past.length > 0 ? list(past, true) : <EmptyState message="Bu sezon henüz maç oynamadı." />}
+            <h3 className="mb-2 px-1 text-sm font-semibold text-white/70">{t('Son Maçlar')}</h3>
+            {past.length > 0 ? list(past, true) : <EmptyState message={t('Bu sezon henüz maç oynamadı.')} />}
           </section>
           <section>
-            <h3 className="mb-2 px-1 text-sm font-semibold text-white/70">Yaklaşan Maçlar</h3>
-            {upcoming.length > 0 ? list(upcoming, false) : <EmptyState message="Fikstürde yaklaşan maç yok." />}
+            <h3 className="mb-2 px-1 text-sm font-semibold text-white/70">{t('Yaklaşan Maçlar')}</h3>
+            {upcoming.length > 0 ? list(upcoming, false) : <EmptyState message={t('Fikstürde yaklaşan maç yok.')} />}
           </section>
         </>
       )}

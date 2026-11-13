@@ -6,6 +6,7 @@ import { seasonLabel } from '../../lib/league'
 import TeamLogo from '../TeamLogo'
 import RatingBadge from '../match-detail/RatingBadge'
 import { EmptyState, ErrorState, LoadingState } from '../match-detail/TabStates'
+import { t } from '../../i18n'
 
 const NO_DATA = 'Bu oyuncu için veri bulunmuyor.'
 
@@ -25,7 +26,7 @@ function LeagueStatsCard({ stats }: { stats: PlayerLeagueStats }) {
     ['İsabetli şut', stats.shotsOnTarget],
     ['İkili mücadele', duels],
   ]
-  const shown = tiles.filter((t): t is [string, string | number] => t[1] !== null)
+  const shown = tiles.filter((tile): tile is [string, string | number] => tile[1] !== null)
 
   return (
     <section className="rounded-xl bg-white/[0.03] p-4">
@@ -48,7 +49,7 @@ function LeagueStatsCard({ stats }: { stats: PlayerLeagueStats }) {
       <dl className="grid grid-cols-3 gap-2 sm:grid-cols-4">
         {shown.map(([label, value]) => (
           <div key={label} className="rounded-lg bg-white/5 px-3 py-2">
-            <dt className="text-xs text-white/50">{label}</dt>
+            <dt className="text-xs text-white/50">{t(label)}</dt>
             <dd className="text-lg font-bold tabular-nums">{value}</dd>
           </div>
         ))}
@@ -72,7 +73,7 @@ export default function SeasonStatsTab({ playerId }: { playerId: string }) {
   return (
     <div className="space-y-4 p-3 sm:p-5">
       <label className="flex items-center justify-end gap-2 text-sm text-white/60">
-        Sezon
+        {t('Sezon')}
         <select
           value={season}
           onChange={(e) => setChosen(Number(e.target.value))}

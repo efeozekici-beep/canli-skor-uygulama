@@ -7,6 +7,7 @@ import StandingsTable from '../components/league/StandingsTable'
 import StatsTab from '../components/league/StatsTab'
 import LeagueFixtures from '../components/league/LeagueFixtures'
 import { EmptyState, LoadingState } from '../components/match-detail/TabStates'
+import { t } from '../i18n'
 
 type Tab = 'standings' | 'stats' | 'matches'
 
@@ -36,24 +37,24 @@ export default function LeaguePage({ leagueId, onBack, onSelectMatch }: Props) {
         <button
           type="button"
           onClick={onBack}
-          aria-label="Geri"
+          aria-label={t('Geri')}
           className="grid size-10 shrink-0 place-items-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
         >
           <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="size-5">
             <path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <p className="px-2 text-xs font-medium text-accent">Lig</p>
+        <p className="px-2 text-xs font-medium text-accent">{t('Lig')}</p>
       </div>
 
       {league.loading ? (
         <LoadingState rows={6} />
       ) : !league.data ? (
-        <EmptyState message="Bu lig için veri yok." />
+        <EmptyState message={t('Bu lig için veri yok.')} />
       ) : (
         <>
           <LeagueHeader league={league.data} season={chosenSeason ?? league.data.currentSeason} onSeasonChange={setChosenSeason} />
-          <LeagueTabs tabs={TABS} active={tab} onChange={setTab} label="Lig sayfası" />
+          <LeagueTabs tabs={TABS} active={tab} onChange={setTab} label={t('Lig sayfası')} />
           {/* Sadece aktif sekme ekranda; verisi de ilk açıldığında yüklenir */}
           <div role="tabpanel" className="flex-1">
             {tab === 'standings' && <StandingsTable leagueId={leagueId} season={chosenSeason ?? league.data.currentSeason} />}

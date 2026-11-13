@@ -24,6 +24,7 @@ export interface Page {
 }
 
 export const PAGES: Page[] = [
+  { path: '/oyunlar', label: 'Oyunlar' },
   { path: '/puan-durumu', label: 'Puan Durumu' },
   { path: '/iddaa-programi', label: 'İddaa Programı' },
   { path: '/uefa-puanlari', label: 'UEFA Puanları' },

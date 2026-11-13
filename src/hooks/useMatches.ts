@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import type { Match } from '../types/match'
 import { fetchMatches, registerMatches } from '../services/matchService'
-import { applyLive, getLiveEvents } from '../services/liveService'
+import { LIVE_SPORTS, applyLive, getLiveEvents } from '../services/liveService'
 import { isSameDay } from '../lib/date'
 
-// Bugünün futbol listesi: skor ve dakika 30 saniyede bir canlı katmandan (ESPN, kota yok);
-// API-Football listesi kotayı korumak için 10 dakikada bir yenilenir (canlı katmanın bilmediği
-// küçük liglerin skorları da o zaman güncellenir).
+// Bugünün listesi: skor ve dakika 30 saniyede bir canlı katmandan (ESPN, kota yok; futbol, basketbol,
+// hokey, beyzbol, Amerikan futbolu, MMA); API listesi kotayı korumak için 10 dakikada bir yenilenir
+// (canlı katmanın bilmediği küçük liglerin skorları da o zaman güncellenir). Canlı katmanı olmayan
+// sporlarda (tenis, F1, voleybol...) canlı maç varken liste 2 dakikada bir yenilenir.
 const LIVE_POLL_MS = 30_000
 const LIST_REFRESH_MS = 10 * 60_000
 
@@ -34,10 +35,11 @@ export function useMatches(sport: string, date: Date) {
     const key = `${sport}|${dayKey}`
     const day = new Date(dayKey)
 
-    const isToday = isSameDay(day, new Date())
+    // Gün geçince (gece yarısı) "bugün" değişir: her seferinde yeniden bakılır
+    const isToday = () => isSameDay(day, new Date())
     const withLive = async (matches: Match[]) => {
-      if (sport !== 'football' || !isToday) return matches
-      const live = await getLiveEvents()
+      if (!LIVE_SPORTS.has(sport) || (!isToday() && !matches.some((m) => m.status === 'live'))) return matches
+      const live = await getLiveEvents(sport)
       const updated = matches.map((m) => applyLive(m, live))
       // Maç sayfasının başlığı da güncel skoru görsün
       registerMatches(updated)
@@ -60,24 +62,26 @@ export function useMatches(sport: string, date: Date) {
 
     load(false)
 
-    // Sadece bugünün maçları değişir; sekme görünürken yenile
-    if (!isToday) return () => void (cancelled = true)
+    // Bugünün maçları ve (gece yarısını geçen) hâlâ canlı maçı olan günler değişir; sekme görünürken yenile
     let lastListRefresh = Date.now()
     const timer = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return
+      if (!isToday() && !hasLive.current) return
       if (Date.now() - lastListRefresh >= LIST_REFRESH_MS) {
         lastListRefresh = Date.now()
         load(true)
         return
       }
-      // Canlı katman: sadece futbolda (basketbol kendi kaynağından, eskisi gibi listeyle yenilenir)
-      if (sport === 'football') {
+      // Canlı katman (ESPN, EuroLeague): bu sporlarda 30 sn'de bir. Canlı katmanın bilmediği ligler (BSL,
+      // küçük futbol ligleri, voleybol...) için canlı maç varken liste de 2 dk'da bir istenir; sunucu listeyi kalan
+      // kotaya göre 3-15 dk saklar (api/proxy.ts), yani bu istekler çoğunlukla önbellekten gelir.
+      if (hasLive.current && Date.now() - lastListRefresh >= 2 * 60_000) {
+        lastListRefresh = Date.now()
+        load(true)
+      } else if (LIVE_SPORTS.has(sport)) {
         withLive(base.current).then((shown) => {
           if (!cancelled) setResult({ key, matches: shown, error: null })
         })
-      } else if (hasLive.current && Date.now() - lastListRefresh >= 2 * 60_000) {
-        lastListRefresh = Date.now()
-        load(true)
       }
     }, LIVE_POLL_MS)
 

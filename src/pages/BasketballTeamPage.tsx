@@ -10,6 +10,7 @@ import TeamStatsCard from '../components/team/TeamStatsCard'
 import ResultBadge from '../components/team/ResultBadge'
 import { EmptyState, ErrorState, LoadingState } from '../components/match-detail/TabStates'
 import { basketballPlayerHref } from '../lib/navigation'
+import { ab, locale, t } from '../i18n'
 
 type Tab = 'matches' | 'squad'
 
@@ -39,11 +40,11 @@ interface Props {
 // Basketbol takım sayfası (#/takim/bb/bb-12/id/2 ya da .../ad/Boston%20Celtics): Maçlar (sezon özeti + son / yaklaşan) ve Kadro
 export default function BasketballTeamPage({ leagueId, teamId, teamName, onBack }: Props) {
   const team = useDetailData(`bb-team:${leagueId}:${teamId ?? teamName}`, async () =>
-    teamId ? ((await getLeagueTeams(leagueId)).find((t) => t.id === teamId) ?? null) : teamName ? findTeamInLeague(leagueId, teamName) : null,
+    teamId ? ((await getLeagueTeams(leagueId)).find((info) => info.id === teamId) ?? null) : teamName ? findTeamInLeague(leagueId, teamName) : null,
   )
   const [tab, setTab] = useState<Tab>('matches')
   const league = LEAGUES[leagueId]
-  const t = team.data
+  const info = team.data
 
   return (
     <div className="flex min-h-full flex-col">
@@ -51,35 +52,35 @@ export default function BasketballTeamPage({ leagueId, teamId, teamName, onBack 
         <button
           type="button"
           onClick={onBack}
-          aria-label="Geri"
+          aria-label={t('Geri')}
           className="grid size-10 shrink-0 place-items-center rounded-full text-white/80 hover:bg-white/10 hover:text-white"
         >
           <svg viewBox="0 0 20 20" fill="none" aria-hidden="true" className="size-5">
             <path d="M12.5 4.5 7 10l5.5 5.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
         </button>
-        <p className="px-2 text-xs font-medium text-accent">Takım</p>
+        <p className="px-2 text-xs font-medium text-accent">{t('Takım')}</p>
       </div>
 
       {team.loading ? (
         <LoadingState rows={6} />
-      ) : !t || !league ? (
+      ) : !info || !league ? (
         <EmptyState message={team.error ?? 'Takım bulunamadı.'} />
       ) : (
         <>
           <div className="flex items-center gap-4 px-4 py-5 sm:px-6">
-            <TeamLogo name={t.name} logo={t.logo ?? undefined} size="lg" />
+            <TeamLogo name={info.name} logo={info.logo ?? undefined} size="lg" />
             <div className="min-w-0 flex-1">
-              <h1 className="truncate text-xl font-bold sm:text-2xl">{t.name}</h1>
+              <h1 className="truncate text-xl font-bold sm:text-2xl">{info.name}</h1>
               <a href={`#/lig/${leagueId}`} className="mt-0.5 inline-block text-sm text-white/55 hover:text-accent">
                 {league.name}
               </a>
             </div>
           </div>
-          <LeagueTabs tabs={TABS} active={tab} onChange={setTab} label="Takım sayfası" />
+          <LeagueTabs tabs={TABS} active={tab} onChange={setTab} label={t('Takım sayfası')} />
           <div role="tabpanel" className="flex-1">
-            {tab === 'matches' && <TeamGames leagueId={leagueId} team={t} season={league.season()} competition={league.name} />}
-            {tab === 'squad' && <TeamRoster leagueId={leagueId} team={t} />}
+            {tab === 'matches' && <TeamGames leagueId={leagueId} team={info} season={league.season()} competition={league.name} />}
+            {tab === 'squad' && <TeamRoster leagueId={leagueId} team={info} />}
           </div>
         </>
       )}
@@ -87,8 +88,8 @@ export default function BasketballTeamPage({ leagueId, teamId, teamName, onBack 
   )
 }
 
-const day = (iso: string) => new Date(iso).toLocaleDateString('tr-TR', { day: 'numeric', month: 'short', weekday: 'short' })
-const time = (iso: string) => new Date(iso).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' })
+const day = (iso: string) => new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'short', weekday: 'short' })
+const time = (iso: string) => new Date(iso).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })
 
 const ROW_CLASS =
   'grid grid-cols-[5.5rem_minmax(0,1fr)_auto_minmax(0,1fr)_1.5rem] items-center gap-2 border-t border-white/5 px-3 py-2.5 first:border-t-0 sm:gap-3'
@@ -130,7 +131,7 @@ function GameRow({ game, team, competition }: { game: BasketballTeamGame; team: 
       {side(game.home, 'right')}
       <span
         className={`min-w-[4.25rem] rounded-lg bg-black/30 px-2 py-1 text-center text-sm font-extrabold tabular-nums ${
-          game.status === 'live' ? 'text-[#fca5a5]' : finished ? '' : 'font-semibold text-white/60'
+          game.status === 'live' ? 'text-red-300' : finished ? '' : 'font-semibold text-white/60'
         }`}
       >
         {finished || game.status === 'live' ? `${game.home.score ?? 0} - ${game.away.score ?? 0}` : time(game.date)}
@@ -162,11 +163,11 @@ function TeamGames({ leagueId, team, season, competition }: { leagueId: string; 
       ) : fixtures.error ? (
         <ErrorState message={fixtures.error} />
       ) : !fixtures.data ? (
-        <EmptyState message="Bu sezonun maçları bulunamadı." />
+        <EmptyState message={t('Bu sezonun maçları bulunamadı.')} />
       ) : (
         <>
           <section>
-            <h3 className="mb-2 px-1 text-sm font-semibold text-white/70">Son Maçlar</h3>
+            <h3 className="mb-2 px-1 text-sm font-semibold text-white/70">{t('Son Maçlar')}</h3>
             {fixtures.data.past.length > 0 ? (
               <ul className="overflow-hidden rounded-xl bg-white/[0.03]">
                 {fixtures.data.past.map((g) => (
@@ -174,11 +175,11 @@ function TeamGames({ leagueId, team, season, competition }: { leagueId: string; 
                 ))}
               </ul>
             ) : (
-              <EmptyState message="Bu sezon henüz maç oynamadı." />
+              <EmptyState message={t('Bu sezon henüz maç oynamadı.')} />
             )}
           </section>
           <section>
-            <h3 className="mb-2 px-1 text-sm font-semibold text-white/70">Yaklaşan Maçlar</h3>
+            <h3 className="mb-2 px-1 text-sm font-semibold text-white/70">{t('Yaklaşan Maçlar')}</h3>
             {fixtures.data.upcoming.length > 0 ? (
               <ul className="overflow-hidden rounded-xl bg-white/[0.03]">
                 {fixtures.data.upcoming.map((g) => (
@@ -186,7 +187,7 @@ function TeamGames({ leagueId, team, season, competition }: { leagueId: string; 
                 ))}
               </ul>
             ) : (
-              <EmptyState message="Fikstürde yaklaşan maç yok." />
+              <EmptyState message={t('Fikstürde yaklaşan maç yok.')} />
             )}
           </section>
         </>
@@ -209,7 +210,7 @@ function TeamRoster({ leagueId, team }: { leagueId: string; team: BasketballTeam
 
   if (squad.loading) return <LoadingState rows={10} />
   if (squad.error) return <ErrorState message={squad.error} />
-  if (!squad.data || squad.data.length === 0) return <EmptyState message="Bu takımın kadro bilgisi bulunmuyor." />
+  if (!squad.data || squad.data.length === 0) return <EmptyState message={t('Bu takımın kadro bilgisi bulunmuyor.')} />
   const players = squad.data
 
   return (
@@ -221,18 +222,18 @@ function TeamRoster({ leagueId, team }: { leagueId: string; team: BasketballTeam
         return (
           <section key={position}>
             <h3 className="mb-2 px-1 text-sm font-semibold text-white/70">
-              {label} <span className="font-normal text-white/40">({group.length})</span>
+              {t(label)} <span className="font-normal text-white/40">({group.length})</span>
             </h3>
             <div className="overflow-hidden rounded-xl bg-white/[0.03]">
               <table className="w-full text-sm tabular-nums">
                 <thead className="text-[11px] text-white/45">
                   <tr>
-                    <th className="py-2 pl-3 text-left font-semibold">Oyuncu</th>
-                    <th className={stat} title="Oynadığı maç">M</th>
-                    <th className={`${stat} hidden sm:table-cell`} title="Maç başı dakika">DK</th>
-                    <th className={stat} title="Maç başı sayı">SAY</th>
-                    <th className={stat} title="Maç başı ribaund">RİB</th>
-                    <th className={`${stat} pr-3`} title="Maç başı asist">AST</th>
+                    <th className="py-2 pl-3 text-left font-semibold">{t('Oyuncu')}</th>
+                    <th className={stat} title={t('Oynadığı maç')}>{ab('M', 'GP', 'Sp')}</th>
+                    <th className={`${stat} hidden sm:table-cell`} title={t('Maç başı dakika')}>{ab('DK', 'MIN', 'MIN')}</th>
+                    <th className={stat} title={t('Maç başı sayı')}>{ab('SAY', 'PTS', 'PKT')}</th>
+                    <th className={stat} title={t('Maç başı ribaund')}>{ab('RİB', 'REB', 'REB')}</th>
+                    <th className={`${stat} pr-3`} title={t('Maç başı asist')}>{ab('AST', 'AST', 'AST')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -258,7 +259,7 @@ function TeamRoster({ leagueId, team }: { leagueId: string; team: BasketballTeam
                         </>
                       ) : (
                         // Bu sezon oynamamış
-                        <td colSpan={5} className="py-2 pr-3 text-right text-[11px] text-white/35">Bu sezon oynamadı</td>
+                        <td colSpan={5} className="py-2 pr-3 text-right text-[11px] text-white/35">{t('Bu sezon oynamadı')}</td>
                       )}
                     </tr>
                   ))}

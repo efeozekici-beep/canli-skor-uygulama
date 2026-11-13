@@ -7,6 +7,7 @@ import RatingBadge from './RatingBadge'
 import PlayerAvatar from '../common/PlayerAvatar'
 import { Card } from './EventIcon'
 import { playerHref } from '../../lib/navigation'
+import { t } from '../../i18n'
 
 interface Props {
   player: LineupPlayer
@@ -95,18 +96,18 @@ export default function PlayerPopover({ player, stats, teamName, onClose }: Prop
           <dl className="mt-3 grid grid-cols-2 gap-2">
             {rows.map(([label, value]) => (
               <div key={label} className="rounded-lg bg-white/5 px-3 py-2">
-                <dt className="text-xs text-white/55">{label}</dt>
+                <dt className="text-xs text-white/55">{t(label)}</dt>
                 <dd className="font-semibold tabular-nums">{value}</dd>
               </div>
             ))}
           </dl>
         ) : (
-          <p className="mt-4 text-sm text-white/55">{stats ? 'Bu maçta oynamadı.' : 'Bu oyuncu için istatistik yok.'}</p>
+          <p className="mt-4 text-sm text-white/55">{stats ? t('Bu maçta oynamadı.') : t('Bu oyuncu için istatistik yok.')}</p>
         )}
 
         {stats && (stats.yellow > 0 || stats.red > 0) && (
           <div className="mt-3 flex items-center gap-2 text-sm text-white/70">
-            Kart:
+            {t('Kart:')}
             {stats.yellow > 0 && <Card color="yellow" />}
             {stats.red > 0 && <Card color="red" />}
           </div>
@@ -119,7 +120,7 @@ export default function PlayerPopover({ player, stats, teamName, onClose }: Prop
             onClick={onClose}
             className="mt-4 flex min-h-11 items-center justify-center rounded-xl bg-accent/15 text-sm font-semibold text-accent hover:bg-accent/25"
           >
-            Oyuncu sayfası
+            {t('Oyuncu sayfası')}
           </a>
         )}
       </div>
